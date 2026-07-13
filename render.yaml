@@ -4,7 +4,7 @@ services:
   - type: web
     name: sidereal-demo-runner
     env: docker
-    repo: https://github.com/PoulavBhowmick03/sidereal
+    repo: https://github.com/sidereal-tech/web
     region: oregon
     plan: free
     branch: main
