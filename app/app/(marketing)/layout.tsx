@@ -34,12 +34,15 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <Wordmark />
             <div className="flex flex-wrap items-center gap-6">
               <RollingLink
-                href="https://github.com/PoulavBhowmick03/sidereal"
+                href="https://github.com/sidereal-tech"
                 className="label-data transition hover:text-paper"
               >
                 GitHub
               </RollingLink>
-              <RollingLink href="/docs" className="label-data transition hover:text-paper">
+              <RollingLink
+                href="https://docs.sidereal.tech"
+                className="label-data transition hover:text-paper"
+              >
                 Docs
               </RollingLink>
               <span className="label-data">Blend USDC · {networkLabel(cfg.networkPassphrase)}</span>

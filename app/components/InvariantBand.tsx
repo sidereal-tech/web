@@ -130,7 +130,7 @@ export function InvariantBand() {
           }`}
           style={style(850)}
         >
-          The invariant every code path preserves
+          The value identity; token quantities adjust with the SY exchange rate
         </p>
 
         <div className="mt-16 grid border-t border-black/15 sm:mt-20 sm:grid-cols-3">

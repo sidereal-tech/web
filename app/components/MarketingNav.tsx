@@ -10,7 +10,7 @@ import { RollingLink } from "@/components/RollingLink";
 const LINKS = [
   { href: "#protocol", label: "Protocol" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "/docs", label: "Docs" },
+  { href: "https://docs.sidereal.tech", label: "Docs" },
 ];
 
 // Marketing top bar. Transparent over the hero, then a solid ink backdrop once

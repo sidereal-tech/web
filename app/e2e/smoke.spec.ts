@@ -10,7 +10,7 @@ const isPublicProfile = process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE === PUBLIC_PA
 
 test("landing page renders the protocol pitch and a launch CTA", async ({ page }) => {
   await page.goto("/");
-  // Marketing hero: editorial headline, the PT+YT=SY invariant, and a Launch App CTA.
+  // Marketing hero: editorial headline, the PT+YT=SY value identity, and a Launch App CTA.
   await expect(
     page.getByRole("heading", { name: /split stellar yield into principal and yield/i }),
   ).toBeVisible();

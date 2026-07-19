@@ -19,8 +19,8 @@ const GUARANTEES = [
     title: "Recombination enforced",
     body: (
       <>
-        One <Term>PT</Term> plus one <Term>YT</Term> always recombines into one <Term>SY</Term>{" "}
-        through the tokenizer.
+        Equal <Term>PT</Term> and <Term>YT</Term> face amounts recombine before maturity into{" "}
+        <Term>SY</Term> shares at the live exchange rate.
       </>
     ),
   },
