@@ -2,54 +2,67 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { Scrim } from "@/components/Scrim";
+import { clamp } from "@/lib/conductor";
+import { useConductor } from "@/lib/useConductor";
 
 export type PinnedStep = { n: string; title: string; kicker: string; body: React.ReactNode };
 
 /** Desktop "how it works": the band pins to the viewport for ~2.6 screens of
  *  scroll and one monochrome SVG scene morphs through the three protocol
- *  moments in place: the deposit ring, the split (core shrinks, side circles
- *  emerge on a flow line), then the PT-to-YT timeline. Scroll position picks
- *  the phase; CSS transitions carry the morph (see the .ps-* rules in
- *  globals.css). The stacked sections remain the mobile and reduced-motion
+ *  moments in place. Scroll position picks the phase.
+ *
+ *  The scene itself is the 3D world behind the band, not an SVG beside the
+ *  copy — the position splitting on the instrument IS this section's diagram.
+ *  The stacked sections remain the mobile and reduced-motion
  *  rendering, so this component is only mounted at lg and up. All copy for
  *  every phase stays in the DOM (inactive blocks are visually hidden), so
  *  crawlers and find-in-page still see the full text. */
 export function PinnedSteps({ steps }: { steps: PinnedStep[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState(1);
+  // The phase last handed to React. Comparing against it keeps the write pass
+  // from calling setState on frames where nothing crossed a third.
+  const phaseRef = useRef(1);
+  // Where the pin stands, measured in the read pass and consumed in the write
+  // pass. The band's own progress is local geometry, so it cannot come off the
+  // conductor's chapter clock — but the measurement still belongs in the pass
+  // that owns layout reads.
+  const localRef = useRef(0);
 
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
+  useConductor(
+    () => {
+      const p = localRef.current;
+      const next = p < 1 / 3 ? 1 : p < 2 / 3 ? 2 : 3;
+      if (next === phaseRef.current) return;
+      phaseRef.current = next;
+      setPhase(next);
+    },
+    {
+      read: () => {
+        const el = wrapRef.current;
+        if (!el) return;
         const total = el.offsetHeight - window.innerHeight;
         if (total <= 0) return;
-        const p = Math.min(1, Math.max(0, -el.getBoundingClientRect().top / total));
-        setPhase(p < 1 / 3 ? 1 : p < 2 / 3 ? 2 : 3);
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
+        localRef.current = clamp(-el.getBoundingClientRect().top / total, 0, 1);
+      },
+    },
+  );
 
   return (
     <div ref={wrapRef} className="pinned-steps relative h-[240vh]" data-phase={phase}>
       <div
-        className={`sticky top-0 flex h-screen items-center overflow-hidden transition-colors duration-700 ${
-          phase === 2 ? "bg-carbon" : "bg-transparent"
-        }`}
+        className="sticky top-0 flex h-screen items-center overflow-hidden bg-transparent"
       >
-        <div className="mx-auto grid w-full max-w-[1440px] items-center gap-10 px-6 sm:px-16 lg:grid-cols-2">
+          {/* The band used to darken to carbon on the split phase. It is pinned
+            over the instrument now, so it holds its copy with a scrim instead
+            of shuttering the frame the split is happening in. */}
+        <Scrim side="left" />
+        {/* One column, holding the left half. The right half is the world: the
+            band used to carry an SVG of the split beside the copy, which is a
+            flat drawing of the mechanism the camera is now flying through. */}
+        <div className="relative mx-auto grid w-full max-w-[1440px] items-center px-6 sm:px-16 lg:grid-cols-2">
           {/* Copy: all three blocks stacked, the active one visible. The step
               owns a full pinned viewport, so everything is set at display
               scale: the numeral as a watermark behind a display-size title. */}
@@ -91,28 +104,6 @@ export function PinnedSteps({ steps }: { steps: PinnedStep[] }) {
             </div>
           </div>
 
-          {/* The morphing scene, scaled to hold its half of the viewport. */}
-          <div className="flex justify-center lg:justify-end">
-            <svg viewBox="0 0 320 240" className="h-72 w-[24rem] lg:h-[30rem] lg:w-[40rem]" aria-hidden="true">
-              {/* Flow line, grown from the center. */}
-              <rect x="30" y="119.5" width="260" height="1" fill="#6D6D6D" className="ps-el ps-line" />
-              {/* Deposit ring: shrinks left into the split's SY circle. */}
-              <circle cx="160" cy="120" r="92" fill="none" stroke="#6D6D6D" strokeWidth="1" className="ps-el ps-ring" />
-              {/* White core: the deposit, then the split's center, then PT. */}
-              <circle cx="160" cy="120" r="46" fill="#FFFFFF" className="ps-el ps-core" />
-              {/* Right circle: YT emerging, then fading into the endpoint dot. */}
-              <circle cx="260" cy="120" r="34" fill="none" stroke="#9A9A9A" strokeWidth="1" className="ps-el ps-right" />
-              <circle cx="290" cy="120" r="6" fill="#9A9A9A" className="ps-el ps-right-dot" />
-              {/* Timeline dressing. */}
-              <circle cx="30" cy="120" r="4" fill="#9A9A9A" className="ps-traveler" />
-              <text x="30" y="152" fill="#6D6D6D" fontSize="13" textAnchor="middle" className="ps-el ps-label">
-                PT fixed
-              </text>
-              <text x="290" y="152" fill="#6D6D6D" fontSize="13" textAnchor="middle" className="ps-el ps-label">
-                YT variable
-              </text>
-            </svg>
-          </div>
         </div>
       </div>
     </div>

@@ -312,59 +312,8 @@ body {
    through the three protocol moments; [data-phase] on the wrapper picks the
    pose and the transitions carry the morph. transform-box keeps scaling
    centered on each element, not the SVG origin. */
-.pinned-steps .ps-el,
-.pinned-steps .ps-traveler {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition:
-    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.8s ease;
-}
-
-/* Phase 1, deposit: ring + core only. */
-.pinned-steps[data-phase="1"] .ps-line,
-.pinned-steps[data-phase="1"] .ps-right,
-.pinned-steps[data-phase="1"] .ps-right-dot,
-.pinned-steps[data-phase="1"] .ps-label,
-.pinned-steps[data-phase="1"] .ps-traveler {
-  opacity: 0;
-}
-.pinned-steps[data-phase="1"] .ps-line {
-  transform: scaleX(0.1);
-}
-
-/* Phase 2, split: ring collapses into the left SY circle, the core tightens,
-   YT emerges right on the flow line. */
-.pinned-steps[data-phase="2"] .ps-ring {
-  transform: translateX(-100px) scale(0.37);
-}
-.pinned-steps[data-phase="2"] .ps-core {
-  transform: scale(0.61);
-}
-.pinned-steps[data-phase="2"] .ps-right-dot {
-  transform: translateX(-30px) scale(0.83);
-}
-.pinned-steps[data-phase="2"] .ps-label,
-.pinned-steps[data-phase="2"] .ps-traveler {
-  opacity: 0;
-}
-
-/* Phase 3, trade: circles resolve into the two timeline endpoints and the
-   traveler dot rides PT -> YT. */
-.pinned-steps[data-phase="3"] .ps-ring {
-  opacity: 0;
-  transform: translateX(-100px) scale(0.1);
-}
-.pinned-steps[data-phase="3"] .ps-core {
-  transform: translateX(-130px) scale(0.13);
-}
-.pinned-steps[data-phase="3"] .ps-right {
-  opacity: 0;
-  transform: translateX(30px) scale(0.18);
-}
-.pinned-steps[data-phase="3"] .ps-traveler {
-  animation: diag-travel 3.6s ease-in-out 0.8s infinite;
-}
+/* The pinned band no longer carries an SVG scene; the world behind it is
+   the diagram. The .ps-* morph rules that drove it are gone with it. */
 
 /* The one sanctioned glow: a 1px amber bloom on live-signal elements only
    (pulse dots, the active tab, Live labels). Glow as signal, never as
@@ -398,20 +347,10 @@ body {
   animation: atmosphere-drift-blue 57s ease-in-out infinite;
 }
 
-/* The star-chart ring system turns once every four minutes: alive if you
-   stare, still if you glance. Transform-only, one composited layer. */
-.chart-rings {
-  animation: chart-spin 240s linear infinite;
-  will-change: transform;
-}
-@keyframes chart-spin {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
+/* The star-chart ring system moved to canvas (components/Orrery.tsx): it still
+   turns once every four minutes, but it now carries the run from issuance to
+   par on it, so its rotation is driven with the rest of the chart rather than
+   by a keyframe here. */
 @keyframes atmosphere-drift-white {
   0%,
   100% {
@@ -543,8 +482,7 @@ body {
   .lv-flash,
   .skeleton,
   .atmosphere-nebula,
-  .ticker-track,
-  .chart-rings {
+  .ticker-track {
     animation: none !important;
   }
   .roll-label,

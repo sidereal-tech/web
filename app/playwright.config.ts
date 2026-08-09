@@ -25,6 +25,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // The landing page drives live WebGL, so each worker holds a render loop. The
+  // world throttles itself when idle, which is most of what a test spends its
+  // time doing, so this can sit well above the 2 it needed before that landed —
+  // but not at the default, because a saturated machine makes specs fail on
+  // starved frames rather than on anything real.
+  workers: 4,
   reporter: "list",
   use: {
     baseURL,

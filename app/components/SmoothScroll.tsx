@@ -4,6 +4,7 @@
 
 import { useEffect } from "react";
 import Lenis from "lenis";
+import { setScrollDelegate } from "@/lib/conductor";
 import { prefersReducedMotion } from "@/lib/useInView";
 
 /** Inertia scrolling for the marketing pages. Lenis smooths the native scroll
@@ -35,7 +36,13 @@ export function SmoothScroll() {
     };
     document.addEventListener("click", onClick, { capture: true });
 
+    // The conductor owns the chapter anchors but not the means of travel; give
+    // it Lenis so a rail jump glides like everything else. Without this it
+    // falls back to a native smooth scroll, which Lenis would then fight.
+    setScrollDelegate((y) => lenis.scrollTo(y));
+
     return () => {
+      setScrollDelegate(null);
       document.removeEventListener("click", onClick, { capture: true });
       cancelAnimationFrame(raf);
       lenis.destroy();
