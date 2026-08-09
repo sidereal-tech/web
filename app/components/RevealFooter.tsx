@@ -4,6 +4,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StarfieldBackground } from "./StarfieldBackground";
+import { clamp } from "@/lib/conductor";
+import { useConductor } from "@/lib/useConductor";
 
 // Parallax "reveal" footer: the footer is pinned to the bottom of the viewport
 // behind the page content, and a spacer the height of the footer sits at the
@@ -31,32 +33,26 @@ export function RevealFooter({ children }: { children: React.ReactNode }) {
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    const el = ref.current;
-    const spacer = spacerRef.current;
-    if (!el || !spacer) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // How far the spacer has been scrolled past, measured in the read pass and
+  // written to --reveal in the write pass.
+  const revealedRef = useRef(1);
 
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
+  useConductor(
+    (f) => {
+      const el = ref.current;
+      if (!el || f.reduced) return;
+      el.style.setProperty("--reveal", revealedRef.current.toFixed(3));
+    },
+    {
+      read: (f) => {
+        const spacer = spacerRef.current;
+        if (!spacer || f.reduced) return;
         const rect = spacer.getBoundingClientRect();
-        const revealed =
-          rect.height > 0
-            ? Math.min(1, Math.max(0, (window.innerHeight - rect.top) / rect.height))
-            : 1;
-        el.style.setProperty("--reveal", revealed.toFixed(3));
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
+        revealedRef.current =
+          rect.height > 0 ? clamp((window.innerHeight - rect.top) / rect.height, 0, 1) : 1;
+      },
+    },
+  );
 
   return (
     <>

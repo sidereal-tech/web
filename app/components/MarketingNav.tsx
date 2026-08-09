@@ -2,10 +2,11 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Wordmark } from "@/components/Logo";
 import { RollingLink } from "@/components/RollingLink";
+import { useConductor } from "@/lib/useConductor";
 
 const LINKS = [
   { href: "#protocol", label: "Protocol" },
@@ -20,12 +21,16 @@ export function MarketingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // Reads the exact scroll position, not the damped one: the backdrop has to be
+  // there by the time the bar is over the paper band, not a beat afterwards.
+  // Guarded so only the frame that crosses the threshold reaches React.
+  const scrolledRef = useRef(false);
+  useConductor((f) => {
+    const next = f.y > 60;
+    if (next === scrolledRef.current) return;
+    scrolledRef.current = next;
+    setScrolled(next);
+  });
 
   return (
     <header

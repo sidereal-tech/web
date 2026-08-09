@@ -2,51 +2,47 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
-import { prefersReducedMotion } from "@/lib/useInView";
+import { useRef } from "react";
+import { useConductor } from "@/lib/useConductor";
 
-/** Scroll-linked layer for the marketing hero. `speed` is the fraction of
- *  scrollY the layer travels (background 0.3, headline 0.12, page content 1.0),
- *  which is what separates the hero into depth planes. `fadeDistance` fades the
- *  layer out over that many scrolled pixels (the scroll cue). rAF-throttled,
- *  passive, disabled under prefers-reduced-motion. */
+/** Scroll-linked layer for the marketing hero. `speed` is the fraction of the
+ *  scroll position the layer travels (background 0.3, headline 0.12, page
+ *  content 1.0), which is what separates the hero into depth planes.
+ *  `fadeDistance` fades the layer out over that many scrolled pixels (the
+ *  scroll cue).
+ *
+ *  The travel reads the conductor's damped scroll position, so a layer trails
+ *  the page slightly and settles after it — that lag is the depth cue. The fade
+ *  reads the exact position instead: an element on its way out should leave
+ *  when the reader scrolls, not a beat later. Pass `damped={false}` to lock a
+ *  layer rigidly to the scroll. */
 export function Parallax({
   children,
   className,
   speed = 0,
   fadeDistance,
+  damped = true,
 }: {
   children: React.ReactNode;
   className?: string;
   speed?: number;
   fadeDistance?: number;
+  damped?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useConductor((f) => {
     const el = ref.current;
-    if (!el || prefersReducedMotion()) return;
-
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const y = window.scrollY;
-        if (speed) el.style.transform = `translate3d(0, ${y * speed}px, 0)`;
-        if (fadeDistance) el.style.opacity = String(Math.max(0, 1 - y / fadeDistance));
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [speed, fadeDistance]);
+    if (!el || f.reduced) return;
+    if (speed) {
+      const y = (damped ? f.ySmooth : f.y) * speed;
+      el.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0)`;
+    }
+    if (fadeDistance) el.style.opacity = Math.max(0, 1 - f.y / fadeDistance).toFixed(3);
+  });
 
   return (
-    <div ref={ref} className={className}>
+    <div ref={ref} data-parallax className={className}>
       {children}
     </div>
   );

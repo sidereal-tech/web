@@ -2,138 +2,27 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
-import Image from "next/image";
 import { Grain } from "@/components/Grain";
+import { Scrim } from "@/components/Scrim";
 
-// Marketing hero background. The "mercury flow" render now carries three layers
-// of motion so it is alive even at rest: a continuous CSS drift, a continuous
-// SVG turbulence displacement (the "liquid" warp, always on, not scroll-gated),
-// and a drifting frosted-glass sheen for the liquid-glass texture. A gentle
-// scroll parallax sits on top for depth. The liquid/glass motion runs always;
-// only the scroll parallax respects prefers-reduced-motion. Atmospheric imagery
-// like this is for the marketing hero ONLY, never behind an app screen.
-// The displacement rests at 34 and surges toward 62 with pointer velocity, so
-// moving the mouse literally stirs the liquid metal.
-const DISPLACE_REST = 34;
-const DISPLACE_MAX = 62;
-
+// The hero's backdrop is the world.
+//
+// This used to be a metallic render with a liquid-warp filter over it. It was
+// opaque, so the instrument's establishing shot — the whole reason the camera
+// ledger opens wide and outside — was spent behind an image and never seen. A
+// borrowed texture in front of the thing the page is actually about is the
+// wrong trade, so the render is gone and chapter 0 is the hero.
+//
+// What is left is what the world cannot do for itself: a scrim to seat the
+// headline, and the film grain that unifies the composite.
 export function HeroBackground() {
-  const ref = useRef<HTMLDivElement>(null);
-  const dispRef = useRef<SVGFEDisplacementMapElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let raf = 0;
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        el.style.transform = `translate3d(0, ${window.scrollY * 0.3}px, 0)`;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  // Pointer-reactive turbulence: pointer speed raises the displacement scale
-  // target, an rAF loop eases the current value toward it and decays back to
-  // rest. Desktop pointers only, and skipped under prefers-reduced-motion.
-  useEffect(() => {
-    const disp = dispRef.current;
-    if (!disp) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-
-    let target = DISPLACE_REST;
-    let current = DISPLACE_REST;
-    let raf = 0;
-
-    const settle = () =>
-      Math.abs(current - DISPLACE_REST) < 0.3 && Math.abs(target - DISPLACE_REST) < 0.3;
-    const loop = () => {
-      target = DISPLACE_REST + (target - DISPLACE_REST) * 0.94;
-      current += (target - current) * 0.08;
-      disp.setAttribute("scale", current.toFixed(2));
-      if (settle()) {
-        disp.setAttribute("scale", String(DISPLACE_REST));
-        raf = 0;
-      } else {
-        raf = requestAnimationFrame(loop);
-      }
-    };
-    const onMove = (e: PointerEvent) => {
-      const speed = Math.hypot(e.movementX, e.movementY);
-      target = Math.min(DISPLACE_MAX, target + speed * 0.2);
-      if (!raf) raf = requestAnimationFrame(loop);
-    };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
   return (
-    <div ref={ref} className="absolute inset-0 will-change-transform">
-      {/* Always-on liquid warp: animated fractal turbulence displaces the render
-          continuously, independent of scroll. */}
-      <svg className="absolute h-0 w-0" aria-hidden focusable="false">
-        <defs>
-          <filter id="liquid-glass" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.005 0.009"
-              numOctaves="2"
-              seed="7"
-              result="noise"
-            >
-              <animate
-                attributeName="baseFrequency"
-                dur="22s"
-                values="0.005 0.009;0.009 0.005;0.005 0.009"
-                repeatCount="indefinite"
-              />
-            </feTurbulence>
-            <feDisplacementMap
-              ref={dispRef}
-              in="SourceGraphic"
-              in2="noise"
-              scale={DISPLACE_REST}
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        </defs>
-      </svg>
-
-      <div
-        className="absolute inset-0 animate-mercury-drift"
-        style={{ filter: "url(#liquid-glass)" }}
-      >
-        <Image src="/hero.png" alt="" fill priority sizes="100vw" className="object-cover" />
-      </div>
-
-      {/* Frosted glass: a translucent blur over the flowing render, plus a
-          slow drifting specular highlight, gives the liquid-glass texture. */}
-      <div className="absolute inset-0 backdrop-blur-[2px]" />
-      <div className="absolute inset-0 animate-glass-sheen bg-[radial-gradient(120%_90%_at_28%_18%,rgba(255,255,255,0.12),transparent_55%)]" />
-
-      {/* Legibility wash for the hero copy. The metallic render is already near
-          black, so the wash is light: dark enough to seat the headline, sheer
-          enough that the chrome streaks read through the middle. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-ink/65 via-ink/20 to-ink" />
-
-      {/* Film grain over everything: the cinematic-darkroom texture. Static
-          tile, so it costs one paint and nothing per frame. */}
-      <Grain className="absolute inset-0" />
+    <div aria-hidden className="absolute inset-0">
+      <Scrim side="left" />
+      {/* A little extra weight at the foot so the scroll cue and the nav's
+          underside both have something to sit on. */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-ink/55 via-transparent to-ink/75" />
+      <Grain className="absolute inset-0 -z-10" />
     </div>
   );
 }

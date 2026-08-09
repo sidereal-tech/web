@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { StepNumeral } from "@/components/StepNumeral";
 import { HeroBackground } from "@/components/HeroBackground";
+import { HeroExit } from "@/components/HeroExit";
 import { Parallax } from "@/components/Parallax";
+import { Scrim } from "@/components/Scrim";
+import type { ExitSequence } from "@/lib/heroExit";
 import { InvariantBand } from "@/components/InvariantBand";
 import { Reveal } from "@/components/Reveal";
 import { CountUp } from "@/components/CountUp";
@@ -58,6 +61,20 @@ const STEPS = [
   },
 ];
 
+// How the hero stands down. Read in order, the windows are the argument: the
+// cue is spent the instant the reader scrolls, the action has already been
+// offered, the lede has been read, and the statement is the last thing to
+// leave — it is still dissolving as the invariant band arrives underneath it.
+// Opacity and a few pixels of travel only. No blur: the headline is
+// background-clip text, and blurring it reads as a rendering fault rather than
+// as depth.
+const HERO_EXIT: ExitSequence = {
+  cue: { at: 0.0, span: 0.22, shift: 10 },
+  actions: { at: 0.18, span: 0.34, shift: 12 },
+  lede: { at: 0.3, span: 0.34, shift: 14 },
+  headline: { at: 0.55, span: 0.45, shift: 18 },
+};
+
 // Protocol facts, stated as oversized numerals. These are design choices that
 // hold regardless of deployment, not market metrics.
 const FACTS = [
@@ -72,46 +89,69 @@ export default function LandingPage() {
 
   return (
     <>
-      {/* Hero: clean ink editorial frame, no atmospheric render. The headline
-          carries the section; the metallic background lives on the app screens. */}
-      <section className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-transparent">
+      {/* The page is one run of time toward maturity. The sections carrying
+          data-chapter are its stops, measured by the conductor into a single
+          normalised tau: 0 at issuance, 1 at maturity. Order is document order,
+          so a chapter is added by adding the attribute — nothing else indexes
+          them. The names are labels, not keys.
+
+            issuance  hero          one whole position
+            split     the invariant SY resolves into PT and YT
+            mechanism how it works  the legs separate
+            market    who it's for  the legs trade apart
+            maturity  overview      YT spent, PT at par
+
+          Hero: the world is the backdrop. Chapter 0's establishing shot of the
+          instrument is what sits behind the headline, held off it by a scrim. */}
+      <section
+        data-chapter="issuance"
+        className="relative flex min-h-screen flex-col justify-center overflow-hidden bg-transparent"
+      >
         <HeroBackground />
-        <Parallax speed={0.12} className="relative mx-auto w-full max-w-[1280px] px-6 sm:px-16">
-          <h1 className="hero-shimmer max-w-4xl text-5xl font-light leading-[1.02] tracking-tight sm:text-7xl lg:text-8xl">
-            Split Stellar yield into principal and yield.
-          </h1>
-          <p className="mt-8 max-w-xl text-lg leading-relaxed text-smoke">
-            Deposit USDC. Mint SY. Separate fixed principal from variable yield, and trade both.
-          </p>
-          <div className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-            <Link
-              href="/trade"
-              className="rounded-pill bg-paper px-7 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-smoke"
+        <HeroExit sequence={HERO_EXIT}>
+          <Parallax speed={0.12} className="relative mx-auto w-full max-w-[1280px] px-6 sm:px-16">
+            <h1
+              data-exit="headline"
+              className="hero-shimmer max-w-4xl text-5xl font-light leading-[1.02] tracking-tight sm:text-7xl lg:text-8xl"
             >
-              Launch App
-            </Link>
-            <span className="font-mono text-sm tracking-[0.2em] text-ash">
-              Blend USDC · fixed-term market
-            </span>
+              Split Stellar yield into principal and yield.
+            </h1>
+            <p data-exit="lede" className="mt-8 max-w-xl text-lg leading-relaxed text-smoke">
+              Deposit USDC. Mint SY. Separate fixed principal from variable yield, and trade both.
+            </p>
+            <div
+              data-exit="actions"
+              className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center"
+            >
+              <Link
+                href="/trade"
+                className="rounded-pill bg-paper px-7 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-smoke"
+              >
+                Launch App
+              </Link>
+              <span className="font-mono text-sm tracking-[0.2em] text-ash">
+                Blend USDC · fixed-term market
+              </span>
+            </div>
+          </Parallax>
+          <div
+            data-exit="cue"
+            className="absolute bottom-8 left-6 flex items-center gap-3 sm:left-16"
+          >
+            <span className="label-data">Scroll</span>
+            <span className="h-px w-10 bg-ash" />
           </div>
-        </Parallax>
-        <Parallax
-          fadeDistance={280}
-          className="absolute bottom-8 left-6 flex items-center gap-3 sm:left-16"
-        >
-          <span className="label-data">Scroll</span>
-          <span className="h-px w-10 bg-ash" />
-        </Parallax>
+        </HeroExit>
       </section>
 
-      {/* Invariant band: the protocol's thesis, set enormous on paper, with
-          the three legs linked to the equation terms on hover. */}
+      {/* Invariant band: the protocol's thesis, set enormous over the split
+          itself, with the three legs linked to the equation terms on hover. */}
       <InvariantBand />
 
       {/* How it works. Desktop: the band pins and one scene morphs through the
           three moments in place (PinnedSteps). Mobile and reduced motion: the
           editorial stacked bands, each with its own animated diagram. */}
-      <section id="how-it-works">
+      <section id="how-it-works" data-chapter="mechanism">
         <div className="steps-pinned hidden lg:block">
           <PinnedSteps steps={STEPS.map(({ n, title, kicker, body }) => ({ n, title, kicker, body }))} />
         </div>
@@ -145,9 +185,10 @@ export default function LandingPage() {
 
       {/* Protocol overview: facts as numerals in an enclosed panel, not invented
           market metrics. */}
-      <section className="relative bg-transparent">
+      <section data-chapter="maturity" className="relative bg-transparent">
+        <Scrim side="bottom" />
         <div className="hairline" />
-        <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16">
+        <div className="relative mx-auto max-w-[1280px] px-6 py-20 sm:px-16">
           <div className="flex items-center justify-between">
             <h2 className="text-4xl font-light tracking-tight sm:text-5xl">
               <WordReveal brightWords={[0]}>Protocol overview</WordReveal>

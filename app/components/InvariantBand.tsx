@@ -3,9 +3,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Scrim } from "@/components/Scrim";
 import { prefersReducedMotion, useInView } from "@/lib/useInView";
 
-// The paper band that carries the protocol's thesis. The equation is set
+// The band that carries the protocol's thesis. The equation is set
 // enormous (it IS the section), assembled on scroll: PT from the left, YT from
 // the right, the result resolving last. On fine pointers each term is live:
 // hovering PT dims the other two legs below, so the equation and its
@@ -32,52 +33,37 @@ const LEGS: Array<{ tag: Leg; name: string; body: string }> = [
   },
 ];
 
-// Each leg in the step-diagram vocabulary, in ink: SY is the wrapped asset
+// Each leg in the step-diagram vocabulary: SY is the wrapped asset
 // (filled core in a ring), PT the bare principal (ring), YT the stream (dot
 // riding a line).
 function LegGlyph({ tag }: { tag: Leg }) {
   if (tag === "SY") {
     return (
       <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden>
-        <circle cx="24" cy="24" r="17" fill="none" stroke="#1a1a1a" strokeWidth="1" />
-        <circle cx="24" cy="24" r="8" fill="#1a1a1a" />
+        <circle cx="24" cy="24" r="17" fill="none" stroke="#FFFFFF" strokeWidth="1" />
+        <circle cx="24" cy="24" r="8" fill="#FFFFFF" />
       </svg>
     );
   }
   if (tag === "PT") {
     return (
       <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden>
-        <circle cx="24" cy="24" r="17" fill="none" stroke="#1a1a1a" strokeWidth="1" />
+        <circle cx="24" cy="24" r="17" fill="none" stroke="#FFFFFF" strokeWidth="1" />
       </svg>
     );
   }
   return (
     <svg viewBox="0 0 48 48" className="h-9 w-9" aria-hidden>
-      <line x1="6" y1="24" x2="42" y2="24" stroke="#1a1a1a" strokeWidth="1" />
-      <circle cx="32" cy="24" r="5" fill="#1a1a1a" />
+      <line x1="6" y1="24" x2="42" y2="24" stroke="#FFFFFF" strokeWidth="1" />
+      <circle cx="32" cy="24" r="5" fill="#FFFFFF" />
     </svg>
   );
 }
 
-// Faint ink echo of the sidereal chart, bleeding off the band's right edge so
-// the paper reads as a page from the same atlas as the dark sections.
-function InkRings() {
-  return (
-    <svg
-      className="pointer-events-none absolute -right-[12%] top-1/2 h-[190%] w-auto -translate-y-1/2"
-      viewBox="0 0 600 600"
-      fill="none"
-      stroke="rgba(0,0,0,0.05)"
-      aria-hidden
-    >
-      {[110, 180, 250, 320].map((r) => (
-        <circle key={r} cx="300" cy="300" r={r} strokeWidth="1" />
-      ))}
-      <circle cx="300" cy="300" r="285" strokeWidth="1" strokeDasharray="2 10" stroke="rgba(0,0,0,0.08)" />
-      <circle cx="585" cy="300" r="4" fill="rgba(0,0,0,0.14)" stroke="none" />
-    </svg>
-  );
-}
+// The band used to draw its own faint echo of the sidereal chart, because it
+// was a white page and the real chart lived only on the dark sections. The
+// instrument is behind it now, so an echo would be a second drawing of the
+// thing already there — the exact duplication this rebuild removed elsewhere.
 
 export function InvariantBand() {
   const { ref, inView } = useInView<HTMLDivElement>(0.35);
@@ -104,8 +90,16 @@ export function InvariantBand() {
   });
 
   return (
-    <section id="protocol" className="relative overflow-hidden bg-paper text-ink">
-      <InkRings />
+    <section
+      id="protocol"
+      data-chapter="split"
+      className="relative overflow-hidden bg-transparent text-paper"
+    >
+      {/* Held from the floor, not evenly: the equation is enormous white type
+          and reads over anything, so the top of the frame is left open and the
+          split — the beat this chapter exists for — stays visible behind it.
+          The smaller definitions below need the weight. */}
+      <Scrim side="bottom" />
       <div ref={ref} className="relative mx-auto max-w-[1280px] px-6 py-24 sm:px-16 sm:py-28">
         <p className="text-center font-light leading-none tracking-tight text-[clamp(3.5rem,9vw,9rem)]">
           <span className={`${part("-translate-x-12 opacity-0")} ${term("PT")}`} style={style(0)} {...hover("PT")}>
@@ -133,24 +127,24 @@ export function InvariantBand() {
           The value identity; token quantities adjust with the SY exchange rate
         </p>
 
-        <div className="mt-16 grid border-t border-black/15 sm:mt-20 sm:grid-cols-3">
+        <div className="mt-16 grid border-t border-white/15 sm:mt-20 sm:grid-cols-3">
           {LEGS.map((leg, i) => (
             <div
               key={leg.tag}
               onPointerEnter={() => setActive(leg.tag)}
               onPointerLeave={() => setActive(null)}
-              className={`border-t border-black/15 py-8 transition-opacity duration-300 sm:border-t-0 sm:px-10 ${
-                i < LEGS.length - 1 ? "sm:border-r sm:border-black/15" : ""
+              className={`border-t border-white/15 py-8 transition-opacity duration-300 sm:border-t-0 sm:px-10 ${
+                i < LEGS.length - 1 ? "sm:border-r sm:border-white/15" : ""
               } ${i === 0 ? "sm:pl-0" : ""} ${active && active !== leg.tag ? "opacity-40" : "opacity-100"}`}
             >
               <div className="flex items-center justify-between">
                 <LegGlyph tag={leg.tag} />
-                <span className="rounded-pill border border-black/25 px-3 py-1 font-mono text-[13px] tracking-[0.12em]">
+                <span className="rounded-pill border border-white/25 px-3 py-1 font-mono text-[13px] tracking-[0.12em]">
                   {leg.tag}
                 </span>
               </div>
               <h3 className="mt-6 text-2xl font-light tracking-tight sm:text-3xl">{leg.name}</h3>
-              <p className="mt-4 max-w-sm leading-relaxed text-graphite">{leg.body}</p>
+              <p className="mt-4 max-w-sm leading-relaxed text-smoke">{leg.body}</p>
             </div>
           ))}
         </div>

@@ -9,6 +9,7 @@ import { RollingLink } from "@/components/RollingLink";
 import { Spotlight } from "@/components/Spotlight";
 import { Term } from "@/components/Term";
 import { WordReveal } from "@/components/WordReveal";
+import { Scrim } from "@/components/Scrim";
 import { prefersReducedMotion, useInView } from "@/lib/useInView";
 
 // Per-role glyphs in the step-diagram language: a locked ring for the fixed
@@ -111,8 +112,9 @@ export function AudienceCards() {
   const hidden = armed && !inView;
 
   return (
-    <section className="relative bg-transparent">
-      <div className="mx-auto max-w-[1280px] px-6 py-20 sm:px-16 sm:py-24">
+    <section data-chapter="market" className="relative bg-transparent">
+      <Scrim side="bottom" />
+      <div className="relative mx-auto max-w-[1280px] px-6 py-20 sm:px-16 sm:py-24">
         <KickerWipe className="label-data">Market / Roles</KickerWipe>
         <h2 className="mt-5 text-5xl font-light tracking-tight sm:text-6xl lg:text-7xl">
           <WordReveal brightWords={[3]}>Who it is for</WordReveal>

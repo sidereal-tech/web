@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { Orrery } from "@/components/Orrery";
+import { World } from "@/components/World";
+
 // Sparse star speckle for the page body: the footer starfield's language at a
 // fraction of its density, so the mid-page void reads as sky, not as gap.
 const BODY_STARS = [
@@ -10,38 +13,6 @@ const BODY_STARS = [
   "radial-gradient(1.2px 1.2px at 120px 420px, rgba(255,255,255,0.4), transparent)",
 ].join(",");
 
-// The signature backdrop: a sidereal star chart. One huge concentric ring
-// system, fixed behind the page, turning once every four minutes. It gives
-// the space between sections a composed structure and carries the footer's
-// chart motif through the whole page.
-function ChartRings() {
-  return (
-    <svg
-      className="chart-rings absolute left-1/2 top-1/2 h-[170vmax] w-[170vmax] -translate-x-1/2 -translate-y-1/2"
-      viewBox="0 0 1000 1000"
-      fill="none"
-      stroke="rgba(255,255,255,0.04)"
-      aria-hidden
-    >
-      {[120, 210, 300, 390, 480].map((r) => (
-        <circle key={r} cx="500" cy="500" r={r} strokeWidth="1" />
-      ))}
-      {/* One eccentric orbit and its body, slightly brighter, so the system
-          reads as a chart rather than a target. */}
-      <circle cx="500" cy="500" r="345" strokeWidth="1" stroke="rgba(255,255,255,0.07)" strokeDasharray="2 10" />
-      <circle cx="845" cy="500" r="3" fill="rgba(255,255,255,0.22)" stroke="none" />
-      {/* Radial ticks at the cardinal points. */}
-      {[0, 90, 180, 270].map((a) => {
-        const x = 500 + 480 * Math.cos((a * Math.PI) / 180);
-        const y = 500 + 480 * Math.sin((a * Math.PI) / 180);
-        const x2 = 500 + 456 * Math.cos((a * Math.PI) / 180);
-        const y2 = 500 + 456 * Math.sin((a * Math.PI) / 180);
-        return <line key={a} x1={x} y1={y} x2={x2} y2={y2} strokeWidth="1" stroke="rgba(255,255,255,0.1)" />;
-      })}
-    </svg>
-  );
-}
-
 export function Atmosphere() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
@@ -50,7 +21,10 @@ export function Atmosphere() {
         className="absolute inset-0 opacity-70"
         style={{ backgroundImage: BODY_STARS, backgroundRepeat: "repeat", backgroundSize: "520px 520px" }}
       />
-      <ChartRings />
+      {/* The 2D chart draws first and is the permanent fallback; the world
+          fades in over it and it stands down. */}
+      <Orrery />
+      <World />
       <div className="atmosphere-nebula atmosphere-nebula-white hidden lg:block" />
       <div className="atmosphere-nebula atmosphere-nebula-blue hidden lg:block" />
       {/* Vignette: seats the corners so content reads against a stage. */}

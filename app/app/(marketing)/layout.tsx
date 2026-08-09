@@ -8,6 +8,9 @@ import { Atmosphere } from "@/components/Atmosphere";
 import { Grain } from "@/components/Grain";
 import { RollingLink } from "@/components/RollingLink";
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { Conductor } from "@/components/Conductor";
+import { MaturityRail } from "@/components/MaturityRail";
+import { WorldForeground } from "@/components/WorldForeground";
 import { appConfig, networkLabel } from "@/lib/config";
 
 // Marketing chrome for the "cinematic darkroom" landing: a fixed atmospheric
@@ -19,7 +22,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-col text-paper">
       <SmoothScroll />
+      <Conductor />
       <MarketingNav />
+      <MaturityRail />
+      {/* The world's near plane. A sibling of the content, not a child of it:
+          only a canvas above the copy in the stacking order can occlude it. */}
+      <WorldForeground />
 
       <main className="marketing-main relative z-10 flex flex-1 flex-col overflow-clip bg-transparent">
         <Atmosphere />
