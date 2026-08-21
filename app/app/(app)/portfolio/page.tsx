@@ -137,7 +137,10 @@ export default function PortfolioPage() {
               connectLabel="Connect wallet to claim"
               idleLabel={
                 position && position.claimableYield > 0n
-                  ? `Claim ${formatTokenAmount(position.claimableYield, cfg.decimals)} SY`
+                  ? // Net, not gross: the tokenizer takes the market's fee out
+                    // of the payout, so the gross figure would promise more
+                    // than the transaction delivers.
+                    `Claim ${formatTokenAmount(position.claimableYieldNet, cfg.decimals)} SY`
                   : "No yield to claim"
               }
             />

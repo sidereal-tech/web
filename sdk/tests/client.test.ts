@@ -354,6 +354,38 @@ describe("getPosition", () => {
     expect(preview?.args).toHaveLength(1);
   });
 
+  it("reports the fee-net payout alongside the gross yield", async () => {
+    // YT quotes what the position earned; the tokenizer keeps `yield_fee_bps`
+    // of the payout. A UI that shows the gross promises more than the chain
+    // pays, so the client has to surface both.
+    state().returns = {
+      share_balance: 0n,
+      position: { pt_balance: 0n, yt_balance: 100n },
+      lp_balance: 0n,
+      preview_claim_yield: 1_000n,
+      config: { yield_fee_bps: 500n },
+    };
+    const p = await newClient().getPosition("G1", "mkt");
+    expect(p.claimableYield).toBe(1_000n);
+    expect(p.yieldFeeBps).toBe(500n);
+    expect(p.claimableYieldNet).toBe(950n);
+  });
+
+  it("treats a market with no fee field as fee-free rather than failing", async () => {
+    // Markets deployed before the fee existed return a Config without
+    // `yield_fee_bps`. Absence means zero, and must not break a position read.
+    state().returns = {
+      share_balance: 0n,
+      position: { pt_balance: 0n, yt_balance: 100n },
+      lp_balance: 0n,
+      preview_claim_yield: 777n,
+      config: {},
+    };
+    const p = await newClient().getPosition("G1", "mkt");
+    expect(p.yieldFeeBps).toBe(0n);
+    expect(p.claimableYieldNet).toBe(777n);
+  });
+
   it("reads banked yield even when YT balance is zero", async () => {
     state().returns = {
       share_balance: 0n,

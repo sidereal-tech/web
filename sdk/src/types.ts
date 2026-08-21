@@ -105,8 +105,20 @@ export interface Position {
   syBalance: bigint;
   ptBalance: bigint;
   ytBalance: bigint;
-  /** Yield claimable by this holder right now, in SY base units. */
+  /**
+   * Yield this holder's position has earned, in SY base units, BEFORE the
+   * market's protocol fee. This is the right figure for valuing YT and the
+   * wrong one to show next to a Claim button — use `claimableYieldNet` there.
+   */
   claimableYield: bigint;
+  /**
+   * What the holder actually receives on a claim: `claimableYield` less
+   * `yieldFeeBps`. Equal to `claimableYield` on a fee-free market, which is
+   * every market deployed so far.
+   */
+  claimableYieldNet: bigint;
+  /** The market's protocol cut of claimed yield, in basis points. Immutable. */
+  yieldFeeBps: bigint;
   /** LP tokens held by this holder in the AMM, in base units. */
   lpBalance: bigint;
 }

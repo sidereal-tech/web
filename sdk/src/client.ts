@@ -261,9 +261,28 @@ export class StellarYT {
     const ptBalance = position.pt_balance;
     const ytBalance = position.yt_balance;
 
-    const claimableYield = await this.simulateRead<bigint>(
-      new Contract(this.contracts.yt).call("preview_claim_yield", holderScVal),
-    );
+    // YT quotes the yield the POSITION earned. The tokenizer then takes the
+    // market's `yield_fee_bps` out of the payout, so the gross figure is the
+    // right number for valuing YT and the wrong number to put next to a Claim
+    // button. Read the fee and report both.
+    const [claimableYield, tokenizerConfig] = await Promise.all([
+      this.simulateRead<bigint>(
+        new Contract(this.contracts.yt).call("preview_claim_yield", holderScVal),
+      ),
+      // Tolerated, not required. A market deployed before the fee existed
+      // returns a Config with no `yield_fee_bps` at all, and a fee-free market
+      // is the correct reading of its absence — so a missing or unreadable
+      // field means 0, never a thrown position read.
+      this.simulateRead<{ yield_fee_bps?: bigint }>(tokenizer.call("config")).catch(
+        () => ({}) as { yield_fee_bps?: bigint },
+      ),
+    ]);
+
+    const yieldFeeBps = tokenizerConfig?.yield_fee_bps ?? 0n;
+    // Mirrors the contract exactly: fee floors, so the holder keeps the
+    // remainder. Doing it any other way would show a number the chain does not
+    // pay.
+    const claimableYieldNet = claimableYield - (claimableYield * yieldFeeBps) / 10_000n;
 
     return {
       holder,
@@ -272,6 +291,8 @@ export class StellarYT {
       ptBalance,
       ytBalance,
       claimableYield,
+      claimableYieldNet,
+      yieldFeeBps,
       lpBalance,
     };
   }
