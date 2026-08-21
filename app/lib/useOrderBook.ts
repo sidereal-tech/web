@@ -80,18 +80,21 @@ export async function walkSide(
   /** Reads (sy, pt) out of a quote in the direction being walked. */
   legs: (quote: Quote, size: bigint) => { sy: bigint; pt: bigint },
 ): Promise<BookLevel[]> {
+  // Each rung is a quote at a CUMULATIVE size, so the rungs do not depend on
+  // one another and there is no reason to await them in series — doing so cost
+  // one RPC round trip per level, and the book has twelve of them. Fetch the
+  // side at once, then walk the settled results in order, which keeps the
+  // "stop at the first rung that will not quote" semantics intact.
+  const settled = await Promise.allSettled(sizes.map((size) => quoteAt(size)));
+
   const levels: BookLevel[] = [];
   let prevSy = 0n;
   let prevPt = 0n;
 
-  for (const size of sizes) {
-    let quote: Quote;
-    try {
-      quote = await quoteAt(size);
-    } catch {
-      break; // depth ends here
-    }
-    const { sy, pt } = legs(quote, size);
+  for (const [i, result] of settled.entries()) {
+    if (result.status === "rejected") break; // depth ends here
+    const quote = result.value;
+    const { sy, pt } = legs(quote, sizes[i]!);
     const sliceSy = sy - prevSy;
     const slicePt = pt - prevPt;
     const priceWad = marginalPrice(sliceSy, slicePt);
@@ -165,20 +168,21 @@ export function useOrderBook(baseStep: bigint | null, refreshKey: unknown = 0): 
       minAmountOut: 0n,
     } as const;
 
-    // Asks: spend SY to receive PT. The ladder is denominated in PT, so the
-    // exact-in direction is quoted by its SY leg and differenced in PT.
-    const asks = await walkSide(
-      sizes,
-      (size) => readQuote({ ...base, assetIn: "SY", assetOut: "PT", amountIn: size }, cfg),
-      (quote) => ({ sy: quote.amountIn, pt: quote.amountOut }),
-    );
-
-    // Bids: sell PT to receive SY.
-    const bids = await walkSide(
-      sizes,
-      (size) => readQuote({ ...base, assetIn: "PT", assetOut: "SY", amountIn: size }, cfg),
-      (quote) => ({ sy: quote.amountOut, pt: quote.amountIn }),
-    );
+    // Both sides are read concurrently. Asks spend SY to receive PT; the ladder
+    // is denominated in PT, so that direction is quoted by its SY leg and
+    // differenced in PT. Bids sell PT for SY.
+    const [asks, bids] = await Promise.all([
+      walkSide(
+        sizes,
+        (size) => readQuote({ ...base, assetIn: "SY", assetOut: "PT", amountIn: size }, cfg),
+        (quote) => ({ sy: quote.amountIn, pt: quote.amountOut }),
+      ),
+      walkSide(
+        sizes,
+        (size) => readQuote({ ...base, assetIn: "PT", assetOut: "SY", amountIn: size }, cfg),
+        (quote) => ({ sy: quote.amountOut, pt: quote.amountIn }),
+      ),
+    ]);
 
     if (runId !== runIdRef.current) return;
 

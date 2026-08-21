@@ -71,8 +71,12 @@ export default function OrderBookPage() {
             <LadderSkeleton />
           ) : book.error ? (
             <p className="px-5 py-10 text-center text-[14px] text-smoke">
-              No depth to show. The pool has no liquidity yet, so the curve cannot be
-              quoted at any size.
+              {matured
+                ? // A matured market refuses every quote by design. Telling the
+                  // reader it has "no liquidity" would send them looking for a
+                  // problem that is really just the market having ended.
+                  "No book after maturity. Trading is closed, so the curve no longer quotes at any size."
+                : "No depth to show. The pool has no liquidity yet, so the curve cannot be quoted at any size."}
             </p>
           ) : (
             <>
