@@ -257,6 +257,22 @@ describe("getMarket", () => {
     expect(m.totalLp).toBe(1_000n);
     expect(m.feeBps).toBe(10n);
     expect(m.maturity).toBe(2_000_000_000);
+    expect(m.admin).toBe("");
+  });
+
+  it("reads fee administration from contract configs", async () => {
+    state().returns = {
+      config: {
+        admin: "GADMIN",
+        fee_recipient: "GFEE",
+        yield_fee_bps: 500n,
+      },
+    };
+    await expect(newClient().getTokenizerFeeConfig()).resolves.toEqual({
+      admin: "GADMIN",
+      feeRecipient: "GFEE",
+      yieldFeeBps: 500n,
+    });
   });
 
   it("rejects with a typed ContractError carrying the contract code", async () => {

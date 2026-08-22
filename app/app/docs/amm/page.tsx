@@ -129,8 +129,9 @@ p = PT_reserve / (PT_reserve + SY_reserve)`}</code>
         <p>LPs deposit PT and SY at the pool&rsquo;s current ratio and earn two things:</p>
         <ul>
           <li>
-            <strong>Trading fees</strong>, set per pool at deployment (the live market charges
-            0.1% on the embedded PT leg of each trade; a YT buy-and-sell round trip pays it twice).
+            <strong>Trading fees</strong>, initialized per pool and bounded by the AMM contract. The
+            retired pilot is fixed at 0.1%; V2 permits only its configured admin to update the fee,
+            with every change emitted on-chain.
           </li>
           <li>
             <strong>Curve convergence.</strong> V1 moves its PT-per-SY-share factor toward one as

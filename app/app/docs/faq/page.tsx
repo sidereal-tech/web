@@ -95,9 +95,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     q: "Can the team pause the protocol, change fees, or take my funds?",
     a: (
       <>
-        No. The contracts cannot be upgraded, and the admin key&rsquo;s single power is a narrow
-        Blend housekeeping migration that cannot touch funds, rates, or token supply. Pause, fee
-        change, and seizure entrypoints simply do not exist in the deployed code. See{" "}
+        The contracts cannot be upgraded, paused, or used to seize holder funds. The retired pilot
+        has no fee setters. New V2 markets do allow their configured contract admins to update
+        bounded swap, claimed-yield, and order-taker fees; those limits are enforced in Wasm and
+        every update emits an event. See{" "}
         <Link href="/docs/security">Security and risks</Link>.
       </>
     ),

@@ -65,6 +65,8 @@ export interface StellarYTOptions {
 /** Snapshot of one market's on-chain state. */
 export interface MarketState {
   marketId: string;
+  /** Configured AMM admin. Empty only for an incompatible legacy decode. */
+  admin: string;
   /** Underlying asset address backing the SY. */
   underlying: string;
   /** SY per underlying, 18-decimal fixed point (the SY exchange rate). */
@@ -87,6 +89,12 @@ export interface MarketState {
   totalLp: bigint;
   /** AMM fee in basis points. */
   feeBps: bigint;
+}
+
+export interface TokenizerFeeConfig {
+  admin: string;
+  feeRecipient: string;
+  yieldFeeBps: bigint;
 }
 
 export interface SwapArgs {

@@ -15,6 +15,7 @@ const TABS = [
   { href: "/orderbook", label: "Book", tour: undefined },
   { href: "/pool", label: "Pool", tour: undefined },
   { href: "/portfolio", label: "Portfolio", tour: "nav-portfolio" },
+  { href: "/admin", label: "Admin", tour: undefined },
   { href: "/demo", label: "Demo", tour: undefined },
 ];
 

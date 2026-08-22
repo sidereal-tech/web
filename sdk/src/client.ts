@@ -37,6 +37,7 @@ import type {
   StellarYTOptions,
   SwapArgs,
   TransactionEnvelope,
+  TokenizerFeeConfig,
   VaultVersion,
 } from "./types.js";
 import {
@@ -275,7 +276,7 @@ export class StellarYT {
       this.simulateRead<bigint>(market.call("reserve_pt")),
       this.simulateRead<bigint>(market.call("reserve_sy")),
       this.simulateRead<bigint>(market.call("total_lp")),
-      this.simulateRead<{ fee_bps: bigint | number }>(market.call("config")),
+      this.simulateRead<{ fee_bps: bigint | number; admin?: string }>(market.call("config")),
     ]);
 
     const maturitySec = Number(maturity);
@@ -283,6 +284,7 @@ export class StellarYT {
 
     return {
       marketId,
+      admin: config.admin ?? "",
       underlying,
       exchangeRate,
       impliedApyBps: twapApyBps,
@@ -294,6 +296,20 @@ export class StellarYT {
       totalSy,
       totalLp,
       feeBps: BigInt(config.fee_bps),
+    };
+  }
+
+  /** Reads the tokenizer admin, fee recipient, and current claimed-yield fee. */
+  async getTokenizerFeeConfig(): Promise<TokenizerFeeConfig> {
+    const config = await this.simulateRead<{
+      admin: string;
+      fee_recipient?: string;
+      yield_fee_bps?: bigint;
+    }>(new Contract(this.contracts.tokenizer).call("config"));
+    return {
+      admin: config.admin,
+      feeRecipient: config.fee_recipient ?? "",
+      yieldFeeBps: config.yield_fee_bps ?? 0n,
     };
   }
 

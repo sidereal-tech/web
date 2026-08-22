@@ -67,17 +67,22 @@ export default function SecurityPage() {
         </p>
 
         <h2>What the admin can and cannot do</h2>
-        <p>The admin is a single key. Its complete list of powers:</p>
+        <p>Admin authority is deployment-versioned and enforced independently by each contract:</p>
         <ul>
           <li>
-            <strong>Can:</strong> re-point the SY wrapper at the same USDC asset under a new Blend
-            reserve slot, if Blend ever reshuffles its internal indexing. The contract checks that
-            the new slot really holds the same asset, so this lever cannot be aimed anywhere else.
+            <strong>Legacy pilot:</strong> the retired mainnet deployment only permits its constrained
+            Blend reserve-index migration. Its deployed Wasm has no fee setters.
           </li>
           <li>
-            <strong>Cannot:</strong> upgrade contracts, move or freeze anyone&rsquo;s funds, set
-            or change the exchange rate, mint tokens, pause the market, or change fees. None of
-            those entrypoints exist in the deployed code.
+            <strong>V2 markets:</strong> the vault admin may set a deposit cap; the AMM, tokenizer,
+            and orderbook admins may update their respective bounded fees. Every fee change emits
+            an on-chain event. The app only enables a control when the connected wallet matches
+            that contract&rsquo;s stored admin.
+          </li>
+          <li>
+            <strong>Cannot:</strong> upgrade contracts, move or freeze holder funds, manually set the
+            exchange rate, mint holder tokens, or pause redemptions. Fee authority cannot bypass
+            the on-chain ceilings.
           </li>
         </ul>
         <p>

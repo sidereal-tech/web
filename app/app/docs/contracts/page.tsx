@@ -109,7 +109,8 @@ export default function ContractsPage() {
             <strong>Decimals:</strong> 7 (Stellar-native), with rate math in 18-decimal WAD.
           </li>
           <li>
-            <strong>Swap fee:</strong> 0.1% on PT↔SY swaps, configured at deployment.
+            <strong>Swap fee:</strong> the retired pilot launched at 0.1% and cannot change. V2 fees
+            are initialized at deployment and subsequently adjustable only by the configured AMM admin.
           </li>
           <li>
             <strong>TWAP window:</strong> 30 minutes.
@@ -148,11 +149,10 @@ bash scripts/verify-reproducible-build.sh \\
 
         <h2>Admin surface</h2>
         <p>
-          The contracts are <strong>immutable</strong>: there is no upgrade entrypoint. The single
-          admin key holds exactly one post-deploy power: a constrained reserve-index migration that
-          can re-point the SY wrapper at the same underlying asset under a new Blend reserve slot.
-          The migration validates the new index&rsquo;s asset against the configured underlying, so
-          it cannot redirect funds, reprice, or mint. Details in{" "}
+          The contracts are <strong>non-upgradeable</strong>. Authority depends on deployment version:
+          the retired pilot only has its constrained reserve-index migration, while V2 adds a vault
+          deposit cap and bounded, event-emitting fee setters on the AMM, tokenizer, and orderbook.
+          None of those controls can redirect holder balances, set the SY rate, or mint. Details in{" "}
           <Link href="/docs/security">Security and risks</Link>.
         </p>
 

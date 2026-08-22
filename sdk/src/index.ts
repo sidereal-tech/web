@@ -56,6 +56,7 @@ export type {
   ContractAddresses,
   StellarYTOptions,
   MarketState,
+  TokenizerFeeConfig,
   SwapArgs,
   Quote,
   Position,
