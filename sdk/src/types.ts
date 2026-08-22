@@ -28,6 +28,9 @@ export const MAX_ORDERBOOK_FEE_BPS = 1_000n;
 /** The three fungible legs a user can hold or trade. */
 export type Asset = "SY" | "PT" | "YT";
 
+/** Deployed Standardized Yield ABI. */
+export type VaultVersion = "v1" | "v2";
+
 /** Resolved contract addresses for one market deployment. */
 export interface ContractAddresses {
   /** Standardized Yield wrapper (one per underlying). */
@@ -55,6 +58,8 @@ export interface StellarYTOptions {
   simulationSourceAccount: string;
   /** Deployed contract addresses for the target market. */
   contracts: ContractAddresses;
+  /** Vault ABI adapter. Defaults to V2 for new deployments. */
+  vaultVersion?: VaultVersion;
 }
 
 /** Snapshot of one market's on-chain state. */
@@ -104,9 +109,9 @@ export interface Quote {
   amountIn: bigint;
   /** Expected output from simulation, in token base units. */
   amountOut: bigint;
-  /** Price impact in basis points (positive = worse for the trader). */
+  /** Price impact versus a small same-route contract quote, in basis points. */
   priceImpactBps: bigint;
-  /** Implied APY after the swap, in basis points. */
+  /** Current pre-trade TWAP implied APY, in basis points. */
   impliedApyBps: bigint;
 }
 

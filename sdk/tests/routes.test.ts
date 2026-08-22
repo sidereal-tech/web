@@ -5,6 +5,7 @@ import {
   marketMethodFor,
   quoteMethodFor,
   priceImpactBps,
+  relativePriceImpactBps,
   secondsToMaturity,
   BPS_DENOMINATOR,
   type Asset,
@@ -73,6 +74,18 @@ describe("priceImpactBps", () => {
   it("throws on non-positive input to avoid divide-by-zero", () => {
     expect(() => priceImpactBps(0n, 0n, BPS_DENOMINATOR)).toThrow(/positive/);
     expect(() => priceImpactBps(-5n, 1n, BPS_DENOMINATOR)).toThrow(/positive/);
+  });
+});
+
+describe("relativePriceImpactBps", () => {
+  it("measures deterioration from the same route's marginal quote", () => {
+    // Reference: 95 out per 100 in. Execution: 940 out per 1000 in.
+    expect(relativePriceImpactBps(1_000n, 940n, 100n, 95n, BPS_DENOMINATOR)).toBe(105n);
+  });
+
+  it("does not call PT's intrinsic discount price impact", () => {
+    // Both quotes execute at 0.95 even though neither is 1:1.
+    expect(relativePriceImpactBps(1_000n, 950n, 100n, 95n, BPS_DENOMINATOR)).toBe(0n);
   });
 });
 

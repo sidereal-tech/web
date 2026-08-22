@@ -34,7 +34,13 @@ export type {
   BlendReserveEmissionScan,
   BlendReserveEmissionSlot,
 } from "./blend.js";
-export { marketMethodFor, quoteMethodFor, priceImpactBps, secondsToMaturity } from "./routes.js";
+export {
+  marketMethodFor,
+  quoteMethodFor,
+  priceImpactBps,
+  relativePriceImpactBps,
+  secondsToMaturity,
+} from "./routes.js";
 export type { MarketMethod, QuoteMethod } from "./routes.js";
 export {
   WAD,
@@ -45,6 +51,7 @@ export {
 } from "./types.js";
 export type {
   Asset,
+  VaultVersion,
   BlendWithdrawArgs,
   ContractAddresses,
   StellarYTOptions,

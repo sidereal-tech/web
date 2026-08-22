@@ -25,6 +25,7 @@ export function makeClient(
     networkPassphrase: cfg.networkPassphrase,
     simulationSourceAccount,
     contracts: cfg.contracts,
+    vaultVersion: cfg.vaultVersion,
   });
 }
 

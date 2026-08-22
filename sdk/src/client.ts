@@ -37,6 +37,7 @@ import type {
   StellarYTOptions,
   SwapArgs,
   TransactionEnvelope,
+  VaultVersion,
 } from "./types.js";
 import {
   BPS_DENOMINATOR,
@@ -44,7 +45,12 @@ import {
   MAX_SWAP_FEE_BPS,
   MAX_YIELD_FEE_BPS,
 } from "./types.js";
-import { marketMethodFor, quoteMethodFor, priceImpactBps, secondsToMaturity } from "./routes.js";
+import {
+  marketMethodFor,
+  quoteMethodFor,
+  relativePriceImpactBps,
+  secondsToMaturity,
+} from "./routes.js";
 import { ContractError, parseContractErrorCode } from "./errors.js";
 import {
   BLEND_REQUEST_WITHDRAW,
@@ -211,6 +217,7 @@ export class StellarYT {
   private readonly networkPassphrase: string;
   private readonly simulationSourceAccount: string;
   private readonly contracts: ContractAddresses;
+  private readonly vaultVersion: VaultVersion;
   private readonly sourceAccountPromises = new Map<string, Promise<SourceAccount>>();
   private static readonly sequenceFloorBySource = new Map<string, bigint>();
 
@@ -226,6 +233,7 @@ export class StellarYT {
     this.networkPassphrase = opts.networkPassphrase;
     this.simulationSourceAccount = opts.simulationSourceAccount;
     this.contracts = opts.contracts;
+    this.vaultVersion = opts.vaultVersion ?? "v2";
   }
 
   private orderbookContract(): Contract {
@@ -339,6 +347,10 @@ export class StellarYT {
   /** Quotes the exact SY shares a V2 vault deposit would mint right now. */
   async previewDeposit(underlyingAmount: bigint): Promise<bigint> {
     requirePositive("underlyingAmount", underlyingAmount);
+    if (this.vaultVersion === "v1") {
+      const rate = await this.simulateRead<bigint>(new Contract(this.contracts.sy).call("exchange_rate"));
+      return (underlyingAmount * 1_000_000_000_000_000_000n) / rate;
+    }
     return this.simulateRead<bigint>(
       new Contract(this.contracts.sy).call(
         "preview_deposit",
@@ -350,6 +362,10 @@ export class StellarYT {
   /** Quotes the exact underlying a V2 vault redemption would return right now. */
   async previewRedeemSy(syAmount: bigint): Promise<bigint> {
     requirePositive("syAmount", syAmount);
+    if (this.vaultVersion === "v1") {
+      const rate = await this.simulateRead<bigint>(new Contract(this.contracts.sy).call("exchange_rate"));
+      return (syAmount * rate) / 1_000_000_000_000_000_000n;
+    }
     return this.simulateRead<bigint>(
       new Contract(this.contracts.sy).call(
         "preview_redeem",
@@ -360,7 +376,7 @@ export class StellarYT {
 
   /**
    * Quotes a swap via the AMM's read-only quote accessors and returns expected
-   * output, price impact, and the post-trade TWAP implied APY. Used by the
+   * output, price impact, and the current pre-trade TWAP implied APY. Used by the
    * frontend before the user signs. These accessors return typed contract
    * errors (InvalidAmount / MarketNotSeeded / MarketMatured), not panics.
    */
@@ -370,8 +386,17 @@ export class StellarYT {
     const quoteMethod = quoteMethodFor(args.assetIn, args.assetOut);
     const amountIn = nativeToScVal(args.amountIn, { type: "i128" });
 
-    const [amountOut, impliedApyBps] = await Promise.all([
+    // A 0.1%-sized same-route quote approximates the pre-trade marginal rate
+    // without assuming that unlike assets should exchange 1:1. Very small
+    // trades use themselves as the reference and correctly report zero impact.
+    const referenceIn = args.amountIn > 1_000n ? args.amountIn / 1_000n : args.amountIn;
+    const [amountOut, referenceOut, impliedApyBps] = await Promise.all([
       this.simulateRead<bigint>(market.call(quoteMethod, amountIn)),
+      referenceIn === args.amountIn
+        ? Promise.resolve<bigint | null>(null)
+        : this.simulateRead<bigint>(
+            market.call(quoteMethod, nativeToScVal(referenceIn, { type: "i128" })),
+          ),
       this.simulateRead<bigint>(market.call("twap_apy")),
     ]);
 
@@ -380,7 +405,16 @@ export class StellarYT {
       assetOut: args.assetOut,
       amountIn: args.amountIn,
       amountOut,
-      priceImpactBps: priceImpactBps(args.amountIn, amountOut, BPS_DENOMINATOR),
+      priceImpactBps:
+        referenceOut === null || referenceOut <= 0n
+          ? 0n
+          : relativePriceImpactBps(
+              args.amountIn,
+              amountOut,
+              referenceIn,
+              referenceOut,
+              BPS_DENOMINATOR,
+            ),
       impliedApyBps,
     };
   }
@@ -416,12 +450,10 @@ export class StellarYT {
       this.simulateRead<bigint>(
         new Contract(this.contracts.yt).call("preview_claim_yield", holderScVal),
       ),
-      // Older deployments have no yield_fee_bps field. Treat an absent or
-      // unreadable field as a fee-free market so position reads stay backward
-      // compatible.
-      this.simulateRead<{ yield_fee_bps?: bigint }>(tokenizer.call("config")).catch(
-        () => ({}) as { yield_fee_bps?: bigint },
-      ),
+      // Older configs decode without this optional field. RPC and decoding
+      // failures still propagate; silently treating an outage as a zero fee
+      // would overstate the holder's net payout.
+      this.simulateRead<{ yield_fee_bps?: bigint }>(tokenizer.call("config")),
     ]);
 
     const yieldFeeBps = tokenizerConfig.yield_fee_bps ?? 0n;
@@ -612,7 +644,11 @@ export class StellarYT {
     const from = new Address(args.from).toScVal();
     const amount = nativeToScVal(args.underlyingAmount, { type: "i128" });
     const minSyOut = nativeToScVal(args.minSyOut, { type: "i128" });
-    const depositOp = new Contract(this.contracts.sy).call("deposit", from, amount, minSyOut);
+    const vault = new Contract(this.contracts.sy);
+    const depositOp =
+      this.vaultVersion === "v1"
+        ? vault.call("deposit", from, amount)
+        : vault.call("deposit", from, amount, minSyOut);
     return this.buildEnvelope(args.from, [depositOp]);
   }
 
@@ -747,12 +783,18 @@ export class StellarYT {
     if (args.minUnderlyingOut < 0n) {
       throw new Error("minUnderlyingOut must not be negative");
     }
-    const op = new Contract(this.contracts.sy).call(
-      "redeem",
-      new Address(args.from).toScVal(),
-      nativeToScVal(args.syAmount, { type: "i128" }),
-      nativeToScVal(args.minUnderlyingOut, { type: "i128" }),
-    );
+    const vault = new Contract(this.contracts.sy);
+    const from = new Address(args.from).toScVal();
+    const syAmount = nativeToScVal(args.syAmount, { type: "i128" });
+    const op =
+      this.vaultVersion === "v1"
+        ? vault.call("redeem", from, syAmount)
+        : vault.call(
+            "redeem",
+            from,
+            syAmount,
+            nativeToScVal(args.minUnderlyingOut, { type: "i128" }),
+          );
     return this.buildEnvelope(args.from, [op]);
   }
 

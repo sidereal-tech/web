@@ -63,6 +63,7 @@ describe("appConfig", () => {
     vi.stubEnv("NEXT_PUBLIC_FRIENDBOT_URL", "https://friendbot.example");
     vi.stubEnv("NEXT_PUBLIC_STELLAR_HORIZON_URL", "https://horizon.example");
     vi.stubEnv("NEXT_PUBLIC_BLEND_APP_URL", "https://blend.example");
+    vi.stubEnv("NEXT_PUBLIC_SY_VERSION", "v1");
 
     const cfg = appConfig();
 
@@ -78,6 +79,7 @@ describe("appConfig", () => {
     expect(cfg.friendbotUrl).toBe("https://friendbot.example");
     expect(cfg.horizonUrl).toBe("https://horizon.example");
     expect(cfg.blendAppUrl).toBe("");
+    expect(cfg.vaultVersion).toBe("v1");
     expect(isDeployed(cfg)).toBe(true);
   });
 

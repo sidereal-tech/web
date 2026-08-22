@@ -41,6 +41,7 @@ const cfg: AppConfig = {
   blendAppUrl: "https://blend.capital",
   marketId: "blend-usdc-q3",
   decimals: 7,
+  vaultVersion: "v2",
   yieldSource: {
     kind: "blend",
     name: "Blend FixedV2 USDC pool",

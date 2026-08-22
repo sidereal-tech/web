@@ -75,6 +75,26 @@ export function priceImpactBps(
   return ((amountIn - amountOut) * bpsDenominator) / amountIn;
 }
 
+/**
+ * Slippage against a smaller quote on the same route. This compares output per
+ * input without assuming PT, SY, or YT should trade 1:1.
+ */
+export function relativePriceImpactBps(
+  amountIn: bigint,
+  amountOut: bigint,
+  referenceIn: bigint,
+  referenceOut: bigint,
+  bpsDenominator: typeof BPS_DENOMINATOR,
+): bigint {
+  if (amountIn <= 0n || amountOut < 0n || referenceIn <= 0n || referenceOut <= 0n) {
+    throw new Error("quote amounts must be positive to compute relative price impact");
+  }
+  const referenceScaled = referenceOut * amountIn;
+  const executionScaled = amountOut * referenceIn;
+  if (executionScaled >= referenceScaled) return 0n;
+  return ((referenceScaled - executionScaled) * bpsDenominator) / referenceScaled;
+}
+
 /** Seconds remaining until maturity, clamped at zero once matured. */
 export function secondsToMaturity(maturity: number, nowSec: number): number {
   return Math.max(0, maturity - nowSec);

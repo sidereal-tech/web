@@ -195,6 +195,7 @@ function newClient(
   overrides: Partial<{
     rpcUrl: string;
     rpcFallbackUrls: string[];
+    vaultVersion: "v1" | "v2";
   }> = {},
 ) {
   return new StellarYT({
@@ -203,6 +204,7 @@ function newClient(
     networkPassphrase: "Test SDF Network ; September 2015",
     simulationSourceAccount,
     contracts,
+    vaultVersion: overrides.vaultVersion,
   });
 }
 
@@ -318,18 +320,18 @@ describe("getMarket", () => {
 });
 
 describe("quoteSwap", () => {
-  it("calls the matching quote accessor and computes price impact", async () => {
-    state().returns = { quote_sy_for_pt: 95n, twap_apy: 500n };
+  it("computes price impact against a small quote on the same route", async () => {
+    state().returns = { quote_sy_for_pt: [94_000n, 95n], twap_apy: 500n };
     const q = await newClient().quoteSwap({
       marketId: "mkt",
       from: "G1",
       assetIn: "SY",
       assetOut: "PT",
-      amountIn: 100n,
+      amountIn: 100_000n,
       minAmountOut: 0n,
     });
-    expect(q.amountOut).toBe(95n);
-    expect(q.priceImpactBps).toBe(500n); // (100-95)/100 = 5% = 500bps
+    expect(q.amountOut).toBe(94_000n);
+    expect(q.priceImpactBps).toBe(105n);
     expect(q.impliedApyBps).toBe(500n);
     expect(state().calls.some((c) => c.method === "quote_sy_for_pt")).toBe(true);
   });
@@ -355,6 +357,7 @@ describe("getPosition", () => {
       position: { pt_balance: 10n, yt_balance: 20n },
       lp_balance: 3n,
       preview_claim_yield: 7n,
+      config: {},
     };
     const p = await newClient().getPosition("G1", "mkt");
     expect(p.syBalance).toBe(50n);
@@ -373,6 +376,7 @@ describe("getPosition", () => {
       position: { pt_balance: 0n, yt_balance: 0n },
       lp_balance: 0n,
       preview_claim_yield: 11n,
+      config: {},
     };
     const p = await newClient().getPosition("G1", "mkt");
     expect(p.claimableYield).toBe(11n);
@@ -385,6 +389,7 @@ describe("getPosition", () => {
       position: { pt_balance: 0n, yt_balance: 0n },
       lp_balance: 0n,
       preview_claim_yield: 0n,
+      config: {},
     };
     const p = await newClient().getPosition("G1", "mkt");
     expect(p.claimableYield).toBe(0n);
@@ -397,6 +402,7 @@ describe("getPosition", () => {
       position: { pt_balance: 0n, yt_balance: 0n },
       lp_balance: 0n,
       preview_claim_yield: 5n,
+      config: {},
     };
     await newClient().getPosition("G1", "mkt");
     const preview = state().calls.find((c) => c.method === "preview_claim_yield");
@@ -617,6 +623,28 @@ describe("transaction builders", () => {
     const redeemPreview = state().calls.find((call) => call.method === "preview_redeem");
     expect((depositPreview!.args[0] as { __sc: unknown }).__sc).toBe(100n);
     expect((redeemPreview!.args[0] as { __sc: unknown }).__sc).toBe(100n);
+  });
+
+  it("adapts deposit previews and builders to a V1 vault ABI", async () => {
+    state().returns = { exchange_rate: [2_000_000_000_000_000_000n, 2_000_000_000_000_000_000n] };
+    const client = newClient({ vaultVersion: "v1" });
+    await expect(client.previewDeposit(100n)).resolves.toBe(50n);
+    await expect(client.previewRedeemSy(100n)).resolves.toBe(200n);
+
+    await client.buildDeposit({
+      marketId: "legacy",
+      from: "G1",
+      underlyingAmount: 100n,
+      minSyOut: 49n,
+    });
+    await client.buildRedeemSy({
+      marketId: "legacy",
+      from: "G1",
+      syAmount: 50n,
+      minUnderlyingOut: 99n,
+    });
+    expect(state().calls.find((call) => call.method === "deposit")?.args).toHaveLength(2);
+    expect(state().calls.find((call) => call.method === "redeem")?.args).toHaveLength(2);
   });
 
   it("buildDeposit builds a single deposit op", async () => {

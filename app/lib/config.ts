@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ContractAddresses } from "@sidereal/sdk";
+import type { ContractAddresses, VaultVersion } from "@sidereal/sdk";
 
 /**
  * Public runtime configuration, sourced from NEXT_PUBLIC_* env vars. These are
@@ -95,6 +95,7 @@ export interface AppConfig {
   decimals: number;
   yieldSource: YieldSourceConfig;
   contracts: ContractAddresses;
+  vaultVersion: VaultVersion;
 }
 
 export type YieldSourceKind = "mock" | "circle" | "blend";
@@ -110,6 +111,10 @@ export interface YieldSourceConfig {
 
 function yieldSourceKind(value: string): YieldSourceKind {
   return value === "mock" || value === "circle" || value === "blend" ? value : "mock";
+}
+
+function vaultVersion(value: string): VaultVersion {
+  return value === "v1" ? "v1" : "v2";
 }
 
 export function stellarNetworkKey(networkPassphrase: string): AppNetwork {
@@ -223,6 +228,7 @@ export function appConfig(): AppConfig {
         : "",
     marketId: publicEnv(process.env.NEXT_PUBLIC_MARKET_ID, "blend-usdc-q3"),
     decimals: Number(publicEnv(process.env.NEXT_PUBLIC_TOKEN_DECIMALS, "7")),
+    vaultVersion: vaultVersion(publicEnv(process.env.NEXT_PUBLIC_SY_VERSION, "v2")),
     yieldSource: {
       kind: yieldKind,
       name: publicEnv(
