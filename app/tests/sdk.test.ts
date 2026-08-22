@@ -73,6 +73,8 @@ describe("readPosition", () => {
       ptBalance: 2n,
       ytBalance: 3n,
       claimableYield: 4n,
+      claimableYieldNet: 4n,
+      yieldFeeBps: 0n,
       lpBalance: 5n,
     };
     getPositionMock
@@ -111,6 +113,8 @@ describe("readPosition", () => {
       ptBalance: 2n,
       ytBalance: 3n,
       claimableYield: 4n,
+      claimableYieldNet: 4n,
+      yieldFeeBps: 0n,
       lpBalance: 5n,
     });
 

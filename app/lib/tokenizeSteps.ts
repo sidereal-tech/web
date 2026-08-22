@@ -29,10 +29,12 @@ export interface TokenizeBlendClient {
     collateralAmount: bigint;
   }): Promise<TransactionEnvelope>;
   getTokenBalance(tokenContract: string, holder: string): Promise<bigint>;
+  previewDeposit(underlyingAmount: bigint): Promise<bigint>;
   buildDeposit(args: {
     marketId: string;
     from: string;
     underlyingAmount: bigint;
+    minSyOut: bigint;
   }): Promise<TransactionEnvelope>;
   getPosition(holder: string, marketId: string): Promise<Position>;
   buildSplit(args: { from: string; syAmount: bigint }): Promise<TransactionEnvelope>;
@@ -74,6 +76,7 @@ export async function buildTokenizeBlendSteps({
 
   const migrateTarget = position.underlyingValue;
   let depositAmount = 0n;
+  let depositSyOut = 0n;
   const initialYtBalance =
     mode === "fixed" ? (await client.getPosition(address, marketId)).ytBalance : 0n;
 
@@ -94,19 +97,20 @@ export async function buildTokenizeBlendSteps({
       build: async () => {
         const balance = await client.getTokenBalance(market.underlying, address);
         depositAmount = balance < migrateTarget ? balance : migrateTarget;
+        depositSyOut = await client.previewDeposit(depositAmount);
         return client.buildDeposit({
           marketId,
           from: address,
           underlyingAmount: depositAmount,
+          minSyOut: applySlippage(depositSyOut, DEFAULT_SLIPPAGE_BPS),
         });
       },
     },
     {
       label: "Split",
       build: async () => {
-        const computed = (depositAmount * WAD) / market.exchangeRate;
         const held = await client.getPosition(address, marketId);
-        const syAmount = held.syBalance < computed ? held.syBalance : computed;
+        const syAmount = held.syBalance < depositSyOut ? held.syBalance : depositSyOut;
         return client.buildSplit({ from: address, syAmount });
       },
     },

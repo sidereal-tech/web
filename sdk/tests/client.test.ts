@@ -389,6 +389,33 @@ describe("getPosition", () => {
     const preview = state().calls.find((c) => c.method === "preview_claim_yield");
     expect(preview?.args).toHaveLength(1);
   });
+
+  it("reports the fee-net payout alongside gross yield", async () => {
+    state().returns = {
+      share_balance: 0n,
+      position: { pt_balance: 0n, yt_balance: 100n },
+      lp_balance: 0n,
+      preview_claim_yield: 1_000n,
+      config: { yield_fee_bps: 500n },
+    };
+    const position = await newClient().getPosition("G1", "mkt");
+    expect(position.claimableYield).toBe(1_000n);
+    expect(position.yieldFeeBps).toBe(500n);
+    expect(position.claimableYieldNet).toBe(950n);
+  });
+
+  it("treats a market with no yield fee field as fee-free", async () => {
+    state().returns = {
+      share_balance: 0n,
+      position: { pt_balance: 0n, yt_balance: 100n },
+      lp_balance: 0n,
+      preview_claim_yield: 777n,
+      config: {},
+    };
+    const position = await newClient().getPosition("G1", "mkt");
+    expect(position.yieldFeeBps).toBe(0n);
+    expect(position.claimableYieldNet).toBe(777n);
+  });
 });
 
 describe("getLpPosition", () => {
@@ -493,15 +520,30 @@ describe("getBlendReserveEmissionScan", () => {
 });
 
 describe("transaction builders", () => {
+  it("reads V2 deposit and redeem previews", async () => {
+    state().returns = { preview_deposit: 95n, preview_redeem: 105n };
+    await expect(newClient().previewDeposit(100n)).resolves.toBe(95n);
+    await expect(newClient().previewRedeemSy(100n)).resolves.toBe(105n);
+
+    const depositPreview = state().calls.find((call) => call.method === "preview_deposit");
+    const redeemPreview = state().calls.find((call) => call.method === "preview_redeem");
+    expect((depositPreview!.args[0] as { __sc: unknown }).__sc).toBe(100n);
+    expect((redeemPreview!.args[0] as { __sc: unknown }).__sc).toBe(100n);
+  });
+
   it("buildDeposit builds a single deposit op", async () => {
     const env = await newClient().buildDeposit({
       marketId: "mkt",
       from: "G1",
       underlyingAmount: 100n,
+      minSyOut: 90n,
     });
     // One host-function op per Soroban tx: deposit and split cannot be batched.
     expect(env.xdr).toBe("PREPARED:deposit");
     expect(env.networkPassphrase).toContain("Test SDF");
+    const deposit = state().calls.find((call) => call.method === "deposit");
+    expect(deposit?.args).toHaveLength(3);
+    expect((deposit!.args[2] as { __sc: unknown }).__sc).toBe(90n);
   });
 
   it("buildDeposit falls back when the primary RPC cannot prepare the tx", async () => {
@@ -511,6 +553,7 @@ describe("transaction builders", () => {
       marketId: "mkt",
       from: "G1",
       underlyingAmount: 100n,
+      minSyOut: 90n,
     });
 
     expect(env.xdr).toBe("PREPARED:deposit");
@@ -522,6 +565,45 @@ describe("transaction builders", () => {
   it("buildSplit builds a single split op", async () => {
     const env = await newClient().buildSplit({ from: "G1", syAmount: 100n });
     expect(env.xdr).toBe("PREPARED:split");
+  });
+
+  it("buildSetSwapFee builds an admin-signed AMM fee update", async () => {
+    const env = await newClient().buildSetSwapFee({ admin: "GADMIN", feeBps: 25n });
+    expect(env.xdr).toBe("PREPARED:set_fee");
+    expect(state().accountRequests).toContain("GADMIN");
+
+    const call = state().calls.find(
+      (candidate) =>
+        candidate.method === "set_fee" &&
+        (candidate.args[0] as { __scAddress?: string }).__scAddress === "GADMIN",
+    );
+    expect(call?.args[1]).toEqual({ __sc: 25n, type: "i128" });
+  });
+
+  it("buildSetYieldFee builds an admin-signed tokenizer fee update", async () => {
+    const env = await newClient().buildSetYieldFee({ admin: "GADMIN", feeBps: 500n });
+    expect(env.xdr).toBe("PREPARED:set_fee");
+    expect(state().accountRequests).toContain("GADMIN");
+
+    const call = state().calls.find(
+      (candidate) =>
+        candidate.method === "set_fee" &&
+        (candidate.args[1] as { __sc?: bigint }).__sc === 500n,
+    );
+    expect(call?.args[0]).toEqual({ __scAddress: "GADMIN" });
+  });
+
+  it("fee builders reject values outside their contract bounds", async () => {
+    const client = newClient();
+    await expect(client.buildSetSwapFee({ admin: "GADMIN", feeBps: -1n })).rejects.toThrow(
+      /between 0 and 9999/,
+    );
+    await expect(client.buildSetSwapFee({ admin: "GADMIN", feeBps: 10_000n })).rejects.toThrow(
+      /between 0 and 9999/,
+    );
+    await expect(client.buildSetYieldFee({ admin: "GADMIN", feeBps: 2_001n })).rejects.toThrow(
+      /between 0 and 2000/,
+    );
   });
 
   it("buildSwap routes through the matching Market method", async () => {
@@ -569,8 +651,12 @@ describe("transaction builders", () => {
       marketId: "mkt",
       from: "G1",
       syAmount: 5n,
+      minUnderlyingOut: 4n,
     });
     expect(env.xdr).toBe("PREPARED:redeem");
+    const redeem = state().calls.find((call) => call.method === "redeem");
+    expect(redeem?.args).toHaveLength(3);
+    expect((redeem!.args[2] as { __sc: unknown }).__sc).toBe(4n);
   });
 
   it("buildAddLiquidity and buildRemoveLiquidity hit the Market methods", async () => {
@@ -625,13 +711,23 @@ describe("transaction builders", () => {
 
   it("rejects non-positive amounts before building", async () => {
     const c = newClient();
-    await expect(c.buildDeposit({ marketId: "mkt", from: "G1", underlyingAmount: 0n })).rejects.toThrow(/positive/);
+    await expect(
+      c.buildDeposit({ marketId: "mkt", from: "G1", underlyingAmount: 0n, minSyOut: 0n }),
+    ).rejects.toThrow(/positive/);
     await expect(c.buildSplit({ from: "G1", syAmount: 0n })).rejects.toThrow(/positive/);
     await expect(
       c.buildSwap({ marketId: "mkt", from: "G1", assetIn: "PT", assetOut: "SY", amountIn: -1n, minAmountOut: 0n }),
     ).rejects.toThrow(/positive/);
     await expect(c.buildRedeem({ marketId: "mkt", from: "G1", amount: 0n })).rejects.toThrow(/positive/);
-    await expect(c.buildRedeemSy({ marketId: "mkt", from: "G1", syAmount: 0n })).rejects.toThrow(/positive/);
+    await expect(
+      c.buildRedeemSy({ marketId: "mkt", from: "G1", syAmount: 0n, minUnderlyingOut: 0n }),
+    ).rejects.toThrow(/positive/);
+    await expect(
+      c.buildDeposit({ marketId: "mkt", from: "G1", underlyingAmount: 1n, minSyOut: -1n }),
+    ).rejects.toThrow(/must not be negative/);
+    await expect(
+      c.buildRedeemSy({ marketId: "mkt", from: "G1", syAmount: 1n, minUnderlyingOut: -1n }),
+    ).rejects.toThrow(/must not be negative/);
     await expect(c.buildRemoveLiquidity({ marketId: "mkt", from: "G1", lpIn: 0n })).rejects.toThrow(/positive/);
   });
 });

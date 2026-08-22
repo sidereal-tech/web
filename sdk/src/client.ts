@@ -24,11 +24,13 @@ import type {
   RedeemSyArgs,
   ClaimArgs,
   RemoveLiquidityArgs,
+  SetSwapFeeArgs,
+  SetYieldFeeArgs,
   StellarYTOptions,
   SwapArgs,
   TransactionEnvelope,
 } from "./types.js";
-import { BPS_DENOMINATOR } from "./types.js";
+import { BPS_DENOMINATOR, MAX_SWAP_FEE_BPS, MAX_YIELD_FEE_BPS } from "./types.js";
 import { marketMethodFor, quoteMethodFor, priceImpactBps, secondsToMaturity } from "./routes.js";
 import { ContractError, parseContractErrorCode } from "./errors.js";
 import {
@@ -72,6 +74,12 @@ const SEQUENCE_DEADLINE_MS = 30_000;
 function requirePositive(label: string, value: bigint): void {
   if (value <= 0n) {
     throw new Error(`${label} must be a positive amount`);
+  }
+}
+
+function requireFeeBps(label: string, value: bigint, maximum: bigint): void {
+  if (value < 0n || value > maximum) {
+    throw new Error(`${label} must be between 0 and ${maximum} basis points`);
   }
 }
 
@@ -207,6 +215,28 @@ export class StellarYT {
     };
   }
 
+  /** Quotes the exact SY shares a V2 vault deposit would mint right now. */
+  async previewDeposit(underlyingAmount: bigint): Promise<bigint> {
+    requirePositive("underlyingAmount", underlyingAmount);
+    return this.simulateRead<bigint>(
+      new Contract(this.contracts.sy).call(
+        "preview_deposit",
+        nativeToScVal(underlyingAmount, { type: "i128" }),
+      ),
+    );
+  }
+
+  /** Quotes the exact underlying a V2 vault redemption would return right now. */
+  async previewRedeemSy(syAmount: bigint): Promise<bigint> {
+    requirePositive("syAmount", syAmount);
+    return this.simulateRead<bigint>(
+      new Contract(this.contracts.sy).call(
+        "preview_redeem",
+        nativeToScVal(syAmount, { type: "i128" }),
+      ),
+    );
+  }
+
   /**
    * Quotes a swap via the AMM's read-only quote accessors and returns expected
    * output, price impact, and the post-trade TWAP implied APY. Used by the
@@ -261,9 +291,20 @@ export class StellarYT {
     const ptBalance = position.pt_balance;
     const ytBalance = position.yt_balance;
 
-    const claimableYield = await this.simulateRead<bigint>(
-      new Contract(this.contracts.yt).call("preview_claim_yield", holderScVal),
-    );
+    const [claimableYield, tokenizerConfig] = await Promise.all([
+      this.simulateRead<bigint>(
+        new Contract(this.contracts.yt).call("preview_claim_yield", holderScVal),
+      ),
+      // Older deployments have no yield_fee_bps field. Treat an absent or
+      // unreadable field as a fee-free market so position reads stay backward
+      // compatible.
+      this.simulateRead<{ yield_fee_bps?: bigint }>(tokenizer.call("config")).catch(
+        () => ({}) as { yield_fee_bps?: bigint },
+      ),
+    ]);
+
+    const yieldFeeBps = tokenizerConfig.yield_fee_bps ?? 0n;
+    const claimableYieldNet = claimableYield - (claimableYield * yieldFeeBps) / BPS_DENOMINATOR;
 
     return {
       holder,
@@ -272,6 +313,8 @@ export class StellarYT {
       ptBalance,
       ytBalance,
       claimableYield,
+      claimableYieldNet,
+      yieldFeeBps,
       lpBalance,
     };
   }
@@ -444,9 +487,11 @@ export class StellarYT {
    */
   async buildDeposit(args: MintArgs): Promise<TransactionEnvelope> {
     requirePositive("underlyingAmount", args.underlyingAmount);
+    if (args.minSyOut < 0n) throw new Error("minSyOut must not be negative");
     const from = new Address(args.from).toScVal();
     const amount = nativeToScVal(args.underlyingAmount, { type: "i128" });
-    const depositOp = new Contract(this.contracts.sy).call("deposit", from, amount);
+    const minSyOut = nativeToScVal(args.minSyOut, { type: "i128" });
+    const depositOp = new Contract(this.contracts.sy).call("deposit", from, amount, minSyOut);
     return this.buildEnvelope(args.from, [depositOp]);
   }
 
@@ -470,6 +515,24 @@ export class StellarYT {
   async buildSwap(args: SwapArgs): Promise<TransactionEnvelope> {
     requirePositive("amountIn", args.amountIn);
     return this.buildEnvelope(args.from, [this.swapOperation(args)]);
+  }
+
+  /** Builds an AMM-admin-authorized swap-fee update transaction. */
+  async buildSetSwapFee(args: SetSwapFeeArgs): Promise<TransactionEnvelope> {
+    requireFeeBps("feeBps", args.feeBps, MAX_SWAP_FEE_BPS);
+    const admin = new Address(args.admin).toScVal();
+    const fee = nativeToScVal(args.feeBps, { type: "i128" });
+    const op = new Contract(this.contracts.market).call("set_fee", admin, fee);
+    return this.buildEnvelope(args.admin, [op]);
+  }
+
+  /** Builds a tokenizer-admin-authorized yield-fee update transaction. */
+  async buildSetYieldFee(args: SetYieldFeeArgs): Promise<TransactionEnvelope> {
+    requireFeeBps("feeBps", args.feeBps, MAX_YIELD_FEE_BPS);
+    const admin = new Address(args.admin).toScVal();
+    const fee = nativeToScVal(args.feeBps, { type: "i128" });
+    const op = new Contract(this.contracts.tokenizer).call("set_fee", admin, fee);
+    return this.buildEnvelope(args.admin, [op]);
   }
 
   /**
@@ -498,10 +561,14 @@ export class StellarYT {
   /** Burns SY shares and returns the corresponding underlying from the vault. */
   async buildRedeemSy(args: RedeemSyArgs): Promise<TransactionEnvelope> {
     requirePositive("syAmount", args.syAmount);
+    if (args.minUnderlyingOut < 0n) {
+      throw new Error("minUnderlyingOut must not be negative");
+    }
     const op = new Contract(this.contracts.sy).call(
       "redeem",
       new Address(args.from).toScVal(),
       nativeToScVal(args.syAmount, { type: "i128" }),
+      nativeToScVal(args.minUnderlyingOut, { type: "i128" }),
     );
     return this.buildEnvelope(args.from, [op]);
   }

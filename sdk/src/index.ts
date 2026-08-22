@@ -36,7 +36,12 @@ export type {
 } from "./blend.js";
 export { marketMethodFor, quoteMethodFor, priceImpactBps, secondsToMaturity } from "./routes.js";
 export type { MarketMethod, QuoteMethod } from "./routes.js";
-export { WAD, BPS_DENOMINATOR } from "./types.js";
+export {
+  WAD,
+  BPS_DENOMINATOR,
+  MAX_SWAP_FEE_BPS,
+  MAX_YIELD_FEE_BPS,
+} from "./types.js";
 export type {
   Asset,
   BlendWithdrawArgs,
@@ -52,6 +57,8 @@ export type {
   RedeemArgs,
   RedeemSyArgs,
   ClaimArgs,
+  SetSwapFeeArgs,
+  SetYieldFeeArgs,
   AddLiquidityArgs,
   RemoveLiquidityArgs,
   TransactionEnvelope,

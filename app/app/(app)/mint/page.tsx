@@ -33,6 +33,7 @@ import { YieldSourceCard } from "@/components/YieldSourceCard";
 import { TokenizeBlendPanel } from "@/components/TokenizeBlendPanel";
 import { YieldChoiceCard } from "@/components/YieldChoiceCard";
 import { useBlendPosition } from "@/lib/useBlendPosition";
+import { applySlippage, DEFAULT_SLIPPAGE_BPS } from "@/lib/slippage";
 
 const MINT_MODES = [
   { id: "deposit", label: "Deposit SY" },
@@ -208,17 +209,33 @@ export default function MintPage() {
     if (!address || preview === null) return;
     const underlyingAmount = parseTokenAmount(amount, cfg.decimals);
     if (!split) {
-      await submit(() => client.buildDeposit({ marketId: cfg.marketId, from: address, underlyingAmount }));
+      await submit(async () => {
+        const syMinted = await client.previewDeposit(underlyingAmount);
+        return client.buildDeposit({
+          marketId: cfg.marketId,
+          from: address,
+          underlyingAmount,
+          minSyOut: applySlippage(syMinted, DEFAULT_SLIPPAGE_BPS),
+        });
+      });
       return;
     }
     // Soroban allows one host-function op per transaction, so deposit and split
     // are two signatures. Split exactly the SY this deposit mints; the split
     // builds only after the deposit confirms (submitSequence enforces order).
-    const syMinted = preview.syOut;
+    let syMinted = 0n;
     await submitSequence([
       {
         label: "Deposit",
-        build: () => client.buildDeposit({ marketId: cfg.marketId, from: address, underlyingAmount }),
+        build: async () => {
+          syMinted = await client.previewDeposit(underlyingAmount);
+          return client.buildDeposit({
+            marketId: cfg.marketId,
+            from: address,
+            underlyingAmount,
+            minSyOut: applySlippage(syMinted, DEFAULT_SLIPPAGE_BPS),
+          });
+        },
       },
       {
         label: "Split",

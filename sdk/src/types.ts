@@ -16,6 +16,12 @@ export const WAD = 1_000_000_000_000_000_000n;
 /** Basis-point denominator (1 bps = 1/10_000). */
 export const BPS_DENOMINATOR = 10_000n;
 
+/** Largest swap fee accepted by the AMM contract. */
+export const MAX_SWAP_FEE_BPS = BPS_DENOMINATOR - 1n;
+
+/** Largest yield fee accepted by the tokenizer contract (20%). */
+export const MAX_YIELD_FEE_BPS = 2_000n;
+
 /** The three fungible legs a user can hold or trade. */
 export type Asset = "SY" | "PT" | "YT";
 
@@ -105,8 +111,12 @@ export interface Position {
   syBalance: bigint;
   ptBalance: bigint;
   ytBalance: bigint;
-  /** Yield claimable by this holder right now, in SY base units. */
+  /** Yield earned by this holder before the tokenizer protocol fee. */
   claimableYield: bigint;
+  /** SY the holder receives after the current tokenizer protocol fee. */
+  claimableYieldNet: bigint;
+  /** Current tokenizer protocol fee in basis points. */
+  yieldFeeBps: bigint;
   /** LP tokens held by this holder in the AMM, in base units. */
   lpBalance: bigint;
 }
@@ -131,6 +141,8 @@ export interface MintArgs {
   from: string;
   /** Underlying amount to deposit, in token base units. */
   underlyingAmount: bigint;
+  /** Minimum SY shares the V2 vault must mint. Pass 0 to opt out. */
+  minSyOut: bigint;
 }
 
 export interface SplitArgs {
@@ -166,11 +178,27 @@ export interface RedeemSyArgs {
   from: string;
   /** SY shares to burn for the corresponding underlying asset amount. */
   syAmount: bigint;
+  /** Minimum underlying the V2 vault must return. Pass 0 to opt out. */
+  minUnderlyingOut: bigint;
 }
 
 export interface ClaimArgs {
   marketId: string;
   from: string;
+}
+
+export interface SetSwapFeeArgs {
+  /** Configured AMM admin; this account must authorize the transaction. */
+  admin: string;
+  /** New swap fee in basis points (0 through 9,999). */
+  feeBps: bigint;
+}
+
+export interface SetYieldFeeArgs {
+  /** Configured tokenizer admin; this account must authorize the transaction. */
+  admin: string;
+  /** New protocol cut of claimed yield in basis points (0 through 2,000). */
+  feeBps: bigint;
 }
 
 export interface AddLiquidityArgs {

@@ -24,6 +24,7 @@ import { MaturityBadge } from "@/components/MaturityBadge";
 import { YieldSourceCard } from "@/components/YieldSourceCard";
 import { BlendPositionCard } from "@/components/BlendPositionCard";
 import { useBlendPosition } from "@/lib/useBlendPosition";
+import { applySlippage, DEFAULT_SLIPPAGE_BPS } from "@/lib/slippage";
 
 // The Portfolio page IS the redeem surface: holdings and maturity context up
 // top, then the three independent actions (claim yield, recombine/redeem PT,
@@ -70,9 +71,15 @@ export default function PortfolioPage() {
     if (!address) return;
     setActiveAction("unwrap");
     const amt = parseTokenAmount(syAmount, cfg.decimals);
-    await submit(() =>
-      client.buildRedeemSy({ marketId: cfg.marketId, from: address, syAmount: amt }),
-    );
+    await submit(async () => {
+      const underlyingOut = await client.previewRedeemSy(amt);
+      return client.buildRedeemSy({
+        marketId: cfg.marketId,
+        from: address,
+        syAmount: amt,
+        minUnderlyingOut: applySlippage(underlyingOut, DEFAULT_SLIPPAGE_BPS),
+      });
+    });
   }
 
   const amtError = amountError(amount, cfg.decimals, position ? maxRedeemable : undefined);
@@ -137,7 +144,7 @@ export default function PortfolioPage() {
               connectLabel="Connect wallet to claim"
               idleLabel={
                 position && position.claimableYield > 0n
-                  ? `Claim ${formatTokenAmount(position.claimableYield, cfg.decimals)} SY`
+                  ? `Claim ${formatTokenAmount(position.claimableYieldNet, cfg.decimals)} SY`
                   : "No yield to claim"
               }
             />

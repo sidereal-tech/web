@@ -41,6 +41,8 @@ function sdkPosition(overrides: Partial<Position>): Position {
     ptBalance: 0n,
     ytBalance: 0n,
     claimableYield: 0n,
+    claimableYieldNet: 0n,
+    yieldFeeBps: 0n,
     lpBalance: 0n,
     ...overrides,
   };
@@ -62,6 +64,7 @@ function clientMock(overrides: Partial<TokenizeBlendClient> = {}): TokenizeBlend
   return {
     buildBlendWithdraw: vi.fn(async () => env("withdraw")),
     getTokenBalance: vi.fn(async () => 100n),
+    previewDeposit: vi.fn(async () => 50n),
     buildDeposit: vi.fn(async () => env("deposit")),
     getPosition: vi.fn(async () => sdkPosition({ syBalance: 50n })),
     buildSplit: vi.fn(async () => env("split")),
@@ -113,6 +116,7 @@ describe("buildTokenizeBlendSteps", () => {
       marketId,
       from: address,
       underlyingAmount: 100n,
+      minSyOut: 49n,
     });
     expect(client.buildSplit).toHaveBeenCalledWith({ from: address, syAmount: 50n });
   });
