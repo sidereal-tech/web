@@ -47,6 +47,7 @@ const MESSAGES: Record<ErrorContext, Record<number, string>> = {
     15: "The best price moved beyond your limit.",
     16: "This order expired. Refresh the book.",
     17: "This market has matured; only cancellation remains available.",
+    20: "This market's fee recipient cannot receive orderbook fees.",
   },
 };
 
