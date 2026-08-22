@@ -22,6 +22,9 @@ export const MAX_SWAP_FEE_BPS = BPS_DENOMINATOR - 1n;
 /** Largest yield fee accepted by the tokenizer contract (20%). */
 export const MAX_YIELD_FEE_BPS = 2_000n;
 
+/** Largest taker fee accepted by the resting-order contract (10%). */
+export const MAX_ORDERBOOK_FEE_BPS = 1_000n;
+
 /** The three fungible legs a user can hold or trade. */
 export type Asset = "SY" | "PT" | "YT";
 
@@ -37,6 +40,8 @@ export interface ContractAddresses {
   tokenizer: string;
   /** Time-decay AMM (the PT/SY market). */
   market: string;
+  /** Escrowed PT/SY resting-order market. Empty on legacy deployments. */
+  orderbook?: string;
 }
 
 export interface StellarYTOptions {
@@ -198,6 +203,85 @@ export interface SetYieldFeeArgs {
   /** Configured tokenizer admin; this account must authorize the transaction. */
   admin: string;
   /** New protocol cut of claimed yield in basis points (0 through 2,000). */
+  feeBps: bigint;
+}
+
+/** Side of the resting maker order. PT is base and SY is quote. */
+export type OrderSide = "Ask" | "Bid";
+
+export interface RestingOrder {
+  id: bigint;
+  maker: string;
+  side: OrderSide;
+  /** SY shares per PT face unit, scaled by 1e18. */
+  priceWad: bigint;
+  originalBase: bigint;
+  remainingBase: bigint;
+  /** PT for asks or SY for bids still held in escrow. */
+  escrowRemaining: bigint;
+  expiry: bigint;
+  createdAt: bigint;
+  prev: bigint | null;
+  next: bigint | null;
+}
+
+export interface OrderbookConfig {
+  admin: string;
+  ptToken: string;
+  syToken: string;
+  maturity: bigint;
+  feeRecipient: string;
+  takerFeeBps: bigint;
+}
+
+export interface OrderFill {
+  orderId: bigint;
+  maker: string;
+  taker: string;
+  side: OrderSide;
+  baseFilled: bigint;
+  quoteAmount: bigint;
+  takerFee: bigint;
+  remainingBase: bigint;
+}
+
+export interface PlaceOrderArgs {
+  maker: string;
+  side: OrderSide;
+  /** PT base amount to buy or sell. */
+  baseAmount: bigint;
+  /** SY-per-PT limit price, scaled by 1e18. */
+  priceWad: bigint;
+  /** Unix expiry timestamp; must be no later than market maturity. */
+  expiry: bigint;
+  /** Existing order immediately before this order in price-time priority. */
+  predecessor: bigint | null;
+}
+
+export interface FillBestOrderArgs {
+  taker: string;
+  /** Side of the resting maker order being taken. */
+  restingSide: OrderSide;
+  /** PT amount to fill. */
+  baseAmount: bigint;
+  /** Maximum ask price or minimum bid price, scaled by 1e18. */
+  limitPriceWad: bigint;
+}
+
+export interface CancelOrderArgs {
+  maker: string;
+  orderId: bigint;
+}
+
+export interface PruneExpiredOrdersArgs {
+  from: string;
+  side: OrderSide;
+  maxOrders: number;
+}
+
+export interface SetOrderbookFeeArgs {
+  admin: string;
+  /** New taker fee in basis points (0 through 1,000). */
   feeBps: bigint;
 }
 

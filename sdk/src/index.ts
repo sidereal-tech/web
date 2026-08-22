@@ -41,6 +41,7 @@ export {
   BPS_DENOMINATOR,
   MAX_SWAP_FEE_BPS,
   MAX_YIELD_FEE_BPS,
+  MAX_ORDERBOOK_FEE_BPS,
 } from "./types.js";
 export type {
   Asset,
@@ -59,6 +60,15 @@ export type {
   ClaimArgs,
   SetSwapFeeArgs,
   SetYieldFeeArgs,
+  OrderSide,
+  RestingOrder,
+  OrderbookConfig,
+  OrderFill,
+  PlaceOrderArgs,
+  FillBestOrderArgs,
+  CancelOrderArgs,
+  PruneExpiredOrdersArgs,
+  SetOrderbookFeeArgs,
   AddLiquidityArgs,
   RemoveLiquidityArgs,
   TransactionEnvelope,

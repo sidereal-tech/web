@@ -142,7 +142,13 @@ vi.mock("@stellar/stellar-sdk", () => {
     }
   }
 
-  const xdr = { ScVal: { scvVec: (items: unknown[]) => ({ __scVec: items }) } };
+  const xdr = {
+    ScVal: {
+      scvVec: (items: unknown[]) => ({ __scVec: items }),
+      scvSymbol: (value: string) => ({ __scSymbol: value }),
+      scvVoid: () => ({ __scVoid: true }),
+    },
+  };
 
   return { Contract, Address, nativeToScVal, scValToNative, TransactionBuilder, rpc: { Server, Api }, xdr };
 });
@@ -175,7 +181,14 @@ type MockState = {
 
 const state = () => (globalThis as Record<string, unknown>).__sdkMock as MockState;
 
-const contracts = { sy: "SY", pt: "PT", yt: "YT", tokenizer: "TK", market: "AMM" };
+const contracts = {
+  sy: "SY",
+  pt: "PT",
+  yt: "YT",
+  tokenizer: "TK",
+  market: "AMM",
+  orderbook: "BOOK",
+};
 const simulationSourceAccount = "GSIMULATIONSOURCE";
 
 function newClient(
@@ -471,6 +484,81 @@ describe("getLpPosition", () => {
   });
 });
 
+describe("resting orderbook queries", () => {
+  const rawOrder = {
+    id: 7n,
+    maker: "GMAKER",
+    side: ["Ask"],
+    price_wad: 950_000_000_000_000_000n,
+    original_base: 100n,
+    remaining_base: 40n,
+    escrow_remaining: 40n,
+    expiry: 2_000_000_000n,
+    created_at: 1_900_000_000n,
+    prev: null,
+    next: 8n,
+  };
+
+  it("normalizes contract order fields and preserves price-time order", async () => {
+    // The RPC mock treats a top-level array as a queue of sequential returns.
+    state().returns = { list_orders: [[rawOrder]] };
+    const orders = await newClient().getRestingOrders("Ask", null, 25);
+
+    expect(orders).toEqual([
+      {
+        id: 7n,
+        maker: "GMAKER",
+        side: "Ask",
+        priceWad: 950_000_000_000_000_000n,
+        originalBase: 100n,
+        remainingBase: 40n,
+        escrowRemaining: 40n,
+        expiry: 2_000_000_000n,
+        createdAt: 1_900_000_000n,
+        prev: null,
+        next: 8n,
+      },
+    ]);
+    const call = state().calls.find((candidate) => candidate.method === "list_orders");
+    expect(call?.args[0]).toEqual({ __scVec: [{ __scSymbol: "Ask" }] });
+    expect(call?.args[1]).toEqual({ __scVoid: true });
+    expect(call?.args[2]).toEqual({ __sc: 25, type: "u32" });
+  });
+
+  it("reads the best order and current fee config", async () => {
+    state().returns = {
+      best_order: rawOrder,
+      config: {
+        admin: "GADMIN",
+        pt_token: "PT",
+        sy_token: "SY",
+        maturity: 2_000_000_000n,
+        fee_recipient: "GFEE",
+        taker_fee_bps: 25n,
+      },
+    };
+    await expect(newClient().getBestRestingOrder("Ask")).resolves.toMatchObject({ id: 7n });
+    await expect(newClient().getOrderbookConfig()).resolves.toEqual({
+      admin: "GADMIN",
+      ptToken: "PT",
+      syToken: "SY",
+      maturity: 2_000_000_000n,
+      feeRecipient: "GFEE",
+      takerFeeBps: 25n,
+    });
+  });
+
+  it("fails clearly for legacy deployments with no orderbook address", async () => {
+    const legacy = new StellarYT({
+      rpcUrl: "http://localhost:8000",
+      networkPassphrase: "Test SDF Network ; September 2015",
+      simulationSourceAccount,
+      contracts: { ...contracts, orderbook: "" },
+    });
+    await expect(legacy.getRestingOrders("Ask")).rejects.toThrow(/no resting-order contract/);
+  });
+});
+
 describe("getBlendReserveEmissionScan", () => {
   it("scans reserve emissions and identifies liability and supply slots", async () => {
     state().returns = {
@@ -604,6 +692,43 @@ describe("transaction builders", () => {
     await expect(client.buildSetYieldFee({ admin: "GADMIN", feeBps: 2_001n })).rejects.toThrow(
       /between 0 and 2000/,
     );
+    await expect(client.buildSetOrderbookFee({ admin: "GADMIN", feeBps: 1_001n })).rejects.toThrow(
+      /between 0 and 1000/,
+    );
+  });
+
+  it("builds resting-order placement, fill, cancellation, pruning, and fee updates", async () => {
+    await expect(
+      newClient().buildPlaceOrder({
+        maker: "GMAKER",
+        side: "Ask",
+        baseAmount: 100n,
+        priceWad: 950_000_000_000_000_000n,
+        expiry: 2_000_000_000n,
+        predecessor: null,
+      }),
+    ).resolves.toMatchObject({ xdr: "PREPARED:place_order" });
+    const place = state().calls.find((candidate) => candidate.method === "place_order");
+    expect(place?.args[1]).toEqual({ __scVec: [{ __scSymbol: "Ask" }] });
+    expect(place?.args[5]).toEqual({ __scVoid: true });
+
+    await expect(
+      newClient().buildFillBestOrder({
+        taker: "GTAKER",
+        restingSide: "Ask",
+        baseAmount: 25n,
+        limitPriceWad: 960_000_000_000_000_000n,
+      }),
+    ).resolves.toMatchObject({ xdr: "PREPARED:fill_best" });
+    await expect(
+      newClient().buildCancelOrder({ maker: "GMAKER", orderId: 7n }),
+    ).resolves.toMatchObject({ xdr: "PREPARED:cancel_order" });
+    await expect(
+      newClient().buildPruneExpiredOrders({ from: "GKEEPER", side: "Bid", maxOrders: 10 }),
+    ).resolves.toMatchObject({ xdr: "PREPARED:prune_expired" });
+    await expect(
+      newClient().buildSetOrderbookFee({ admin: "GADMIN", feeBps: 50n }),
+    ).resolves.toMatchObject({ xdr: "PREPARED:set_fee" });
   });
 
   it("buildSwap routes through the matching Market method", async () => {

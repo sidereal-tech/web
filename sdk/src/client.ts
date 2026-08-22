@@ -24,13 +24,26 @@ import type {
   RedeemSyArgs,
   ClaimArgs,
   RemoveLiquidityArgs,
+  CancelOrderArgs,
+  FillBestOrderArgs,
+  OrderbookConfig,
+  OrderSide,
+  PlaceOrderArgs,
+  PruneExpiredOrdersArgs,
+  RestingOrder,
+  SetOrderbookFeeArgs,
   SetSwapFeeArgs,
   SetYieldFeeArgs,
   StellarYTOptions,
   SwapArgs,
   TransactionEnvelope,
 } from "./types.js";
-import { BPS_DENOMINATOR, MAX_SWAP_FEE_BPS, MAX_YIELD_FEE_BPS } from "./types.js";
+import {
+  BPS_DENOMINATOR,
+  MAX_ORDERBOOK_FEE_BPS,
+  MAX_SWAP_FEE_BPS,
+  MAX_YIELD_FEE_BPS,
+} from "./types.js";
 import { marketMethodFor, quoteMethodFor, priceImpactBps, secondsToMaturity } from "./routes.js";
 import { ContractError, parseContractErrorCode } from "./errors.js";
 import {
@@ -81,6 +94,59 @@ function requireFeeBps(label: string, value: bigint, maximum: bigint): void {
   if (value < 0n || value > maximum) {
     throw new Error(`${label} must be between 0 and ${maximum} basis points`);
   }
+}
+
+function orderSideScVal(side: OrderSide): xdr.ScVal {
+  return xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(side)]);
+}
+
+function optionalU64ScVal(value: bigint | null): xdr.ScVal {
+  return value === null ? xdr.ScVal.scvVoid() : nativeToScVal(value, { type: "u64" });
+}
+
+function decodedOrderSide(value: unknown): OrderSide {
+  const tag =
+    typeof value === "string"
+      ? value
+      : Array.isArray(value)
+        ? value[0]
+        : value && typeof value === "object" && "tag" in value
+          ? (value as { tag: unknown }).tag
+          : null;
+  if (tag !== "Ask" && tag !== "Bid") {
+    throw new Error(`invalid resting-order side returned by contract: ${String(tag)}`);
+  }
+  return tag;
+}
+
+type RawRestingOrder = {
+  id: bigint;
+  maker: string;
+  side: unknown;
+  price_wad: bigint;
+  original_base: bigint;
+  remaining_base: bigint;
+  escrow_remaining: bigint;
+  expiry: bigint;
+  created_at: bigint;
+  prev?: bigint | null;
+  next?: bigint | null;
+};
+
+function restingOrder(raw: RawRestingOrder): RestingOrder {
+  return {
+    id: BigInt(raw.id),
+    maker: raw.maker,
+    side: decodedOrderSide(raw.side),
+    priceWad: BigInt(raw.price_wad),
+    originalBase: BigInt(raw.original_base),
+    remainingBase: BigInt(raw.remaining_base),
+    escrowRemaining: BigInt(raw.escrow_remaining),
+    expiry: BigInt(raw.expiry),
+    createdAt: BigInt(raw.created_at),
+    prev: raw.prev == null ? null : BigInt(raw.prev),
+    next: raw.next == null ? null : BigInt(raw.next),
+  };
 }
 
 function sleep(milliseconds: number): Promise<void> {
@@ -162,6 +228,14 @@ export class StellarYT {
     this.contracts = opts.contracts;
   }
 
+  private orderbookContract(): Contract {
+    const address = this.contracts.orderbook?.trim();
+    if (!address) {
+      throw new Error("this market deployment has no resting-order contract");
+    }
+    return new Contract(address);
+  }
+
   // --- queries -------------------------------------------------------------
 
   /** Reads current market state from the AMM and SY contracts. */
@@ -213,6 +287,53 @@ export class StellarYT {
       totalLp,
       feeBps: BigInt(config.fee_bps),
     };
+  }
+
+  /** Reads the immutable market wiring and current taker fee of the orderbook. */
+  async getOrderbookConfig(): Promise<OrderbookConfig> {
+    const raw = await this.simulateRead<{
+      admin: string;
+      pt_token: string;
+      sy_token: string;
+      maturity: bigint;
+      fee_recipient: string;
+      taker_fee_bps: bigint;
+    }>(this.orderbookContract().call("config"));
+    return {
+      admin: raw.admin,
+      ptToken: raw.pt_token,
+      syToken: raw.sy_token,
+      maturity: BigInt(raw.maturity),
+      feeRecipient: raw.fee_recipient,
+      takerFeeBps: BigInt(raw.taker_fee_bps),
+    };
+  }
+
+  /** Reads active orders in contract-enforced price-time priority. */
+  async getRestingOrders(
+    side: OrderSide,
+    cursor: bigint | null = null,
+    limit = 50,
+  ): Promise<RestingOrder[]> {
+    if (!Number.isInteger(limit) || limit <= 0 || limit > 50) {
+      throw new Error("limit must be an integer between 1 and 50");
+    }
+    const raw = await this.simulateRead<RawRestingOrder[]>(
+      this.orderbookContract().call(
+        "list_orders",
+        orderSideScVal(side),
+        optionalU64ScVal(cursor),
+        nativeToScVal(limit, { type: "u32" }),
+      ),
+    );
+    return raw.map(restingOrder);
+  }
+
+  async getBestRestingOrder(side: OrderSide): Promise<RestingOrder | null> {
+    const raw = await this.simulateRead<RawRestingOrder | null>(
+      this.orderbookContract().call("best_order", orderSideScVal(side)),
+    );
+    return raw === null ? null : restingOrder(raw);
   }
 
   /** Quotes the exact SY shares a V2 vault deposit would mint right now. */
@@ -532,6 +653,68 @@ export class StellarYT {
     const admin = new Address(args.admin).toScVal();
     const fee = nativeToScVal(args.feeBps, { type: "i128" });
     const op = new Contract(this.contracts.tokenizer).call("set_fee", admin, fee);
+    return this.buildEnvelope(args.admin, [op]);
+  }
+
+  /** Builds a maker-authorized order placement that escrows PT or SY. */
+  async buildPlaceOrder(args: PlaceOrderArgs): Promise<TransactionEnvelope> {
+    requirePositive("baseAmount", args.baseAmount);
+    requirePositive("priceWad", args.priceWad);
+    requirePositive("expiry", args.expiry);
+    const op = this.orderbookContract().call(
+      "place_order",
+      new Address(args.maker).toScVal(),
+      orderSideScVal(args.side),
+      nativeToScVal(args.baseAmount, { type: "i128" }),
+      nativeToScVal(args.priceWad, { type: "i128" }),
+      nativeToScVal(args.expiry, { type: "u64" }),
+      optionalU64ScVal(args.predecessor),
+    );
+    return this.buildEnvelope(args.maker, [op]);
+  }
+
+  /** Builds a taker-authorized partial or full fill of the current best order. */
+  async buildFillBestOrder(args: FillBestOrderArgs): Promise<TransactionEnvelope> {
+    requirePositive("baseAmount", args.baseAmount);
+    requirePositive("limitPriceWad", args.limitPriceWad);
+    const op = this.orderbookContract().call(
+      "fill_best",
+      new Address(args.taker).toScVal(),
+      orderSideScVal(args.restingSide),
+      nativeToScVal(args.baseAmount, { type: "i128" }),
+      nativeToScVal(args.limitPriceWad, { type: "i128" }),
+    );
+    return this.buildEnvelope(args.taker, [op]);
+  }
+
+  async buildCancelOrder(args: CancelOrderArgs): Promise<TransactionEnvelope> {
+    const op = this.orderbookContract().call(
+      "cancel_order",
+      new Address(args.maker).toScVal(),
+      nativeToScVal(args.orderId, { type: "u64" }),
+    );
+    return this.buildEnvelope(args.maker, [op]);
+  }
+
+  async buildPruneExpiredOrders(args: PruneExpiredOrdersArgs): Promise<TransactionEnvelope> {
+    if (!Number.isInteger(args.maxOrders) || args.maxOrders <= 0 || args.maxOrders > 50) {
+      throw new Error("maxOrders must be an integer between 1 and 50");
+    }
+    const op = this.orderbookContract().call(
+      "prune_expired",
+      orderSideScVal(args.side),
+      nativeToScVal(args.maxOrders, { type: "u32" }),
+    );
+    return this.buildEnvelope(args.from, [op]);
+  }
+
+  async buildSetOrderbookFee(args: SetOrderbookFeeArgs): Promise<TransactionEnvelope> {
+    requireFeeBps("feeBps", args.feeBps, MAX_ORDERBOOK_FEE_BPS);
+    const op = this.orderbookContract().call(
+      "set_fee",
+      new Address(args.admin).toScVal(),
+      nativeToScVal(args.feeBps, { type: "i128" }),
+    );
     return this.buildEnvelope(args.admin, [op]);
   }
 
