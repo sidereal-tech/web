@@ -4,7 +4,7 @@ import type { ContractError } from "@sidereal/sdk";
 
 // Which contract a user action talks to, so a numeric error code maps to the
 // right message (codes are per-contract enums and overlap across contracts).
-export type ErrorContext = "amm" | "tokenizer" | "sy";
+export type ErrorContext = "amm" | "tokenizer" | "sy" | "orderbook";
 
 const MESSAGES: Record<ErrorContext, Record<number, string>> = {
   amm: {
@@ -29,6 +29,19 @@ const MESSAGES: Record<ErrorContext, Record<number, string>> = {
     5: "Insufficient balance.",
     6: "Amount is too large.",
     12: "Not authorized.",
+  },
+  orderbook: {
+    4: "Enter a valid amount.",
+    5: "Enter a valid limit price.",
+    6: "Choose an expiry before market maturity.",
+    8: "Only the configured admin can change this fee.",
+    9: "That resting order no longer exists.",
+    10: "Only the maker can cancel this order.",
+    12: "The book moved while placing. Refresh and try again.",
+    13: "This order crosses the book. Fill the best order first.",
+    15: "The best price moved beyond your limit.",
+    16: "This order expired. Refresh the book.",
+    17: "This market has matured; only cancellation remains available.",
   },
 };
 

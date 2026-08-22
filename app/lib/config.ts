@@ -252,11 +252,18 @@ export function appConfig(): AppConfig {
       yt: publicEnv(process.env.NEXT_PUBLIC_YT_ADDRESS),
       tokenizer: publicEnv(process.env.NEXT_PUBLIC_TOKENIZER_ADDRESS),
       market: publicEnv(process.env.NEXT_PUBLIC_MARKET_ADDRESS),
+      orderbook: publicEnv(process.env.NEXT_PUBLIC_ORDERBOOK_ADDRESS),
     },
   };
 }
 
 /** True once every contract address is configured (i.e. the market is deployed). */
 export function isDeployed(cfg: AppConfig): boolean {
-  return Object.values(cfg.contracts).every((addr) => addr.length > 0);
+  return [
+    cfg.contracts.sy,
+    cfg.contracts.pt,
+    cfg.contracts.yt,
+    cfg.contracts.tokenizer,
+    cfg.contracts.market,
+  ].every((addr) => addr.length > 0);
 }

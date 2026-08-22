@@ -30,6 +30,7 @@ const contractEnv = {
   NEXT_PUBLIC_YT_ADDRESS: "C_YT",
   NEXT_PUBLIC_TOKENIZER_ADDRESS: "C_TOKENIZER",
   NEXT_PUBLIC_MARKET_ADDRESS: "C_MARKET",
+  NEXT_PUBLIC_ORDERBOOK_ADDRESS: "C_ORDERBOOK",
 };
 
 // The test runner may inherit a real deployment's env (check-frontend-testnet.sh
@@ -71,6 +72,7 @@ describe("appConfig", () => {
       yt: "C_YT",
       tokenizer: "C_TOKENIZER",
       market: "C_MARKET",
+      orderbook: "C_ORDERBOOK",
     });
     expect(cfg.blendFaucetUrl).toBe("https://faucet.example/getAssets");
     expect(cfg.friendbotUrl).toBe("https://friendbot.example");
