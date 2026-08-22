@@ -28,4 +28,10 @@ describe("describeError", () => {
       "Only the configured admin can change the deposit cap.",
     );
   });
+
+  it("labels an unsafe orderbook fee recipient", () => {
+    expect(describeError(new ContractError("Error(Contract, #20)", 20), "orderbook")).toBe(
+      "This market's fee recipient cannot receive orderbook fees.",
+    );
+  });
 });
