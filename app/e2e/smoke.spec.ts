@@ -8,22 +8,25 @@ import { test, expect } from "@playwright/test";
 const PUBLIC_PASSPHRASE = "Public Global Stellar Network ; September 2015";
 const isPublicProfile = process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE === PUBLIC_PASSPHRASE;
 
-test("landing page renders the protocol pitch and a launch CTA", async ({ page }) => {
+test("landing page renders the protocol pitch and a request-access CTA", async ({ page }) => {
   await page.goto("/");
-  // Marketing hero: editorial headline, the PT+YT=SY value identity, and a Launch App CTA.
+  // Marketing hero: editorial headline, the PT+YT=SY value identity, and the private-access CTA.
   await expect(
     page.getByRole("heading", { name: /split stellar yield into principal and yield/i }),
   ).toBeVisible();
   await expect(page.getByText("PT + YT = SY")).toBeVisible();
-  await expect(page.getByRole("link", { name: /launch app/i }).first()).toBeVisible();
+  const requestAccess = page.getByRole("link", { name: /request access/i }).first();
+  await expect(requestAccess).toBeVisible();
+  await requestAccess.click();
+  await expect(page).toHaveURL(/\/request-access\?source=nav$/, { timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: /enter the next fixed-yield market/i })).toBeVisible();
+  await expect(page.getByLabel("Work email")).toBeVisible();
 });
 
 test("nav reaches strategy, mint, trade, pool, and portfolio", async ({ page }) => {
-  // The in-app tabs live in the app shell, not on the marketing landing. Enter
-  // the app first via Launch App, then exercise the header tabs.
-  await page.goto("/");
-  await page.getByRole("link", { name: /launch app/i }).first().click();
-  await expect(page).toHaveURL(/\/trade$/, { timeout: 15_000 });
+  // The public CTA now leads to the request flow. Exercise the independently
+  // routable app shell directly.
+  await page.goto("/trade");
   await expect(page.getByRole("heading", { name: "Trade" })).toBeVisible({ timeout: 15_000 });
 
   const nav = page.locator("header nav");

@@ -124,10 +124,10 @@ export default function LandingPage() {
               className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center"
             >
               <Link
-                href="/trade"
+                href="/request-access?source=hero"
                 className="rounded-pill bg-paper px-7 py-3 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-smoke"
               >
-                Launch App
+                Request Access
               </Link>
               <span className="font-mono text-sm tracking-[0.2em] text-ash">
                 Blend USDC · fixed-term market

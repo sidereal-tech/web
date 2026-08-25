@@ -40,9 +40,32 @@ pnpm --filter @sidereal/app run typecheck && pnpm --filter @sidereal/app test
 
 ## Deploy
 
-Vercel, with Root Directory set to `app`. The build runs
-`pnpm --filter @sidereal/sdk build && next build` via `app/vercel.json`.
-Use Node 20+.
+The web app is deployed on Vercel with Root Directory set to `app`. The build
+runs `pnpm --filter @sidereal/sdk build && next build` via `app/vercel.json`.
+
+Access requests are handled by a small private Cloudflare Worker and stored in
+Cloudflare D1. From `app/`, migrate and deploy that Worker separately:
+
+```bash
+pnpm wrangler d1 migrations apply sidereal-access-requests \
+  --config ../workers/access-requests/wrangler.jsonc --remote
+pnpm wrangler secret put ACCESS_REQUEST_API_TOKEN \
+  --config ../workers/access-requests/wrangler.jsonc
+pnpm wrangler secret put TURNSTILE_SECRET_KEY \
+  --config ../workers/access-requests/wrangler.jsonc
+pnpm access-worker:deploy
+```
+
+Set `TURNSTILE_SITE_KEY`, `ACCESS_REQUEST_API_URL`, and the matching
+`ACCESS_REQUEST_API_TOKEN` in Vercel. The Worker-to-D1 binding and request rate
+limiter are declared in `workers/access-requests/wrangler.jsonc`. For local
+Worker development, copy its `.dev.vars.example` to `.dev.vars` and apply the
+migration with `--local`. Use Node 20+.
+
+The Vercel project owner must set those values in the actual Vercel account;
+the Cloudflare Worker deliberately rejects missing or short shared tokens.
+The database migration enforces a hard maximum of 10,000 unique access-request
+records at the storage layer.
 
 ## History note
 

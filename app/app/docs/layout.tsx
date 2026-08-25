@@ -42,10 +42,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               GitHub
             </a>
             <Link
-              href="/trade"
+              href="/request-access?source=docs"
               className="rounded-pill bg-paper px-5 py-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-smoke"
             >
-              Launch App
+              Request Access
             </Link>
           </div>
         </nav>

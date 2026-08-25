@@ -56,10 +56,10 @@ export function MarketingNav() {
             ))}
           </div>
           <Link
-            href="/trade"
+            href="/request-access?source=nav"
             className="rounded-pill bg-paper px-5 py-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ink transition hover:bg-smoke"
           >
-            Launch App
+            Request Access
           </Link>
           <button
             type="button"
