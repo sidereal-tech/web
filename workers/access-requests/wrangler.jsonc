@@ -7,7 +7,7 @@
     {
       "binding": "ACCESS_REQUESTS_DB",
       "database_name": "sidereal-access-requests",
-      "database_id": "82895e9e-c0f7-4017-9727-d22052e8ade5",
+      "database_id": "e4cb4463-8053-4635-a48e-3771ecf7bf87",
       "migrations_dir": "../../app/migrations"
     }
   ],

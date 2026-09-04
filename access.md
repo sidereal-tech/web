@@ -11,7 +11,7 @@ stores requests in D1.
 3. Add these Production environment variables to the Vercel project:
 
    ```env
-   ACCESS_REQUEST_API_URL=https://sidereal-access-requests.hypersettle.workers.dev
+   ACCESS_REQUEST_API_URL=https://sidereal-access-requests.bpoulav.workers.dev
    ACCESS_REQUEST_API_TOKEN=<the generated shared secret>
    TURNSTILE_SITE_KEY=<the Turnstile site key>
    ```
