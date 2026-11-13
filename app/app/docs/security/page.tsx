@@ -18,9 +18,9 @@ export default function SecurityPage() {
       <div className="mt-8">
         <Callout label="Read this first" signal>
           Sidereal has <strong>not</strong> had a professional third-party audit. The contracts
-          cannot be changed after deployment, so a defect would be permanent. The mainnet
-          deployment holds small, deliberately limited funds. Treat it as early and unaudited, not
-          as safe.
+          cannot be changed after deployment, so a defect would be permanent. The V1 mainnet
+          pilot has matured and every position has been redeemed; V2 runs on testnet only. Treat
+          Sidereal as early and unaudited, not as safe.
         </Callout>
       </div>
 
@@ -44,8 +44,8 @@ export default function SecurityPage() {
           <li>
             <strong>Live simulation:</strong> waves of real testnet wallets ran the full lifecycle
             against fresh deployments, and every claimed finding was re-verified against source
-            before being recorded. The mainnet deployment itself has run the complete lifecycle
-            with real funds.
+            before being recorded. The V1 mainnet pilot ran the complete lifecycle with real
+            funds before it was retired.
           </li>
           <li>
             <strong>Reproducible builds:</strong> anyone can rebuild the contracts from the

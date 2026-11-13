@@ -62,9 +62,10 @@ export default function IntroductionPage() {
 
         <h2>The first market</h2>
         <p>
-          The live market is built on the <a href="https://mainnet.blend.capital/">Blend v2</a>{" "}
-          USDC lending pool on Stellar mainnet. USDC you deposit is lent out through Blend, and the
-          interest borrowers pay is the yield being split. The rate Sidereal reports is read
+          The first market, a V1 pilot that matured on 2026-08-09, was built on the{" "}
+          <a href="https://mainnet.blend.capital/">Blend v2</a> USDC lending pool on Stellar
+          mainnet. V2 markets run on Blend&rsquo;s testnet USDC pool. USDC you deposit is lent out
+          through Blend, and the interest borrowers pay is the yield being split. The rate Sidereal reports is read
           straight from the Blend position itself; no person sets it. Each market has a fixed
           maturity date. After it, PT holders take their principal back one-for-one and the market
           winds down.
@@ -111,9 +112,11 @@ export default function IntroductionPage() {
       </div>
 
       <div className="mt-5">
-        <Callout label="Live on mainnet · unaudited" signal>
-          Sidereal is live on Stellar mainnet, and the full lifecycle has settled real funds end to
-          end. It has <strong>not</strong> had a professional third-party audit, and the contracts
+        <Callout label="Testnet · unaudited" signal>
+          Sidereal V1 ran as a small mainnet pilot from 2026-07-10 until its market matured on
+          2026-08-09, and the full lifecycle settled real funds end to end. Every position has been
+          redeemed and V1 is retired. V2 runs on Stellar testnet only. It has <strong>not</strong>
+          had a professional third-party audit, and the contracts
           cannot be changed after deployment, so a defect would be permanent. Treat it as early and
           unaudited, not as safe. See <Link href="/docs/security">Security and risks</Link>.
         </Callout>

@@ -549,7 +549,7 @@ export default function DemoPage() {
         <section className="panel-subtle p-5">
           <p className="label-data">Automation disabled</p>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-smoke">
-            The live market is already deployed on Stellar mainnet. Use the walkthrough below to
+            Use the walkthrough below to
             connect a wallet, bring the correct USDC reserve asset, supply it on Blend, and
             tokenize the position through Sidereal. The server-side demo runner remains testnet-only
             by design.

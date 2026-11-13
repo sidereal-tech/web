@@ -8,11 +8,13 @@ export const metadata: Metadata = { title: "FAQ" };
 
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
-    q: "Is Sidereal live on mainnet?",
+    q: "Is Sidereal on mainnet?",
     a: (
       <>
-        Yes, since 2026-07-11, on top of Blend v2&rsquo;s USDC pool, and the full lifecycle has
-        settled real funds end to end. It is early and unaudited; see{" "}
+        No. V1 ran as a small mainnet pilot on Blend v2&rsquo;s USDC pool from 2026-07-10 until
+        its market matured on 2026-08-09, and the full lifecycle settled real funds end to end.
+        Every position has been redeemed. V2 runs on testnet only, and mainnet waits for an
+        independent audit. It is early and unaudited; see{" "}
         <Link href="/docs/security">Security and risks</Link>.
       </>
     ),
@@ -107,7 +109,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     q: "Why can't I trade size right now?",
     a: (
       <>
-        The first mainnet market is newly seeded, so the trading pool is shallow and large swaps
+        A newly opened market&rsquo;s trading pool is shallow, so large swaps
         move the rate sharply against you. Everything that needs no counterparty (deposit, split,
         claim, recombine, redeem) works at any size. Deepening liquidity is the current growth
         focus.
@@ -119,7 +121,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         Maturity is set per market, so new markets, including longer terms, are fresh deployments
-        of the same code rather than changes to the live one. An existing market&rsquo;s maturity
+        of the same code rather than changes to an existing one. An existing market&rsquo;s maturity
         can never be extended: the redemption date you bought is fixed forever. Successor markets
         are announced when they deploy.
       </>

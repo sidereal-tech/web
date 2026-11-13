@@ -100,7 +100,7 @@ export default function TradeGuidePage() {
 
       <div className="mt-8">
         <Callout label="Current pool depth" signal>
-          The mainnet market is newly seeded and shallow. Small trades work fine; size will move
+          A newly opened market&rsquo;s pool is shallow. Small trades work fine; size will move
           the rate sharply against you, and the quote will show it. Splitting and holding (see{" "}
           <Link href="/docs/guides/mint">Deposit and split</Link>) works at any size, no pool
           required.

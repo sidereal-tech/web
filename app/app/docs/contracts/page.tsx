@@ -52,11 +52,11 @@ export default function ContractsPage() {
       <DocsHeader
         kicker="Reference"
         title="Deployed contracts"
-        summary="Mainnet contract addresses for the live market, the current market parameters, and how to verify that the deployed bytecode matches the public source."
+        summary="Contract addresses for the retired V1 mainnet pilot, its market parameters, and how to verify that the deployed bytecode matches the public source."
       />
 
       <div className="docs-prose mt-8">
-        <h2>Mainnet</h2>
+        <h2>Mainnet (V1 pilot, retired)</h2>
         <p>
           Deployed 2026-07-11 from commit <code>67151f8</code> against Blend v2&rsquo;s{" "}
           <code>FixedV2</code> USDC pool.
@@ -162,7 +162,7 @@ bash scripts/verify-reproducible-build.sh \\
           <a href="https://github.com/sidereal-tech/contracts/blob/main/deployments/testnet.toml">
             deployments/testnet.toml
           </a>
-          . It is not canonical now that mainnet is live.
+          . Current V2 testnet markets are recorded under deployments/markets/testnet/.
         </p>
       </div>
 
