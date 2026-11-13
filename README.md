@@ -2,8 +2,8 @@
 
 Frontend and TypeScript SDK for [Sidereal](https://www.sidereal.tech), yield
 tokenization on Stellar. The app drives the full protocol lifecycle (deposit,
-split, trade, provide liquidity, claim, redeem) against the live mainnet
-deployment, and ships the in-app documentation at `/docs`.
+split, trade, provide liquidity, claim, redeem) against the deployment it is
+configured for (testnet by default; the V1 mainnet pilot is retired), and ships the in-app documentation at `/docs`.
 
 - Contracts repo:
   [`sidereal-tech/contracts`](https://github.com/sidereal-tech/contracts)

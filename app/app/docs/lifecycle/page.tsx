@@ -76,8 +76,8 @@ export default function LifecyclePage() {
         <h2>After maturity: wind-down</h2>
         <p>
           The market becomes a settlement window: PT holders redeem, YT holders make their final
-          collections, and liquidity providers withdraw. The current mainnet market is a single
-          fixed cycle. When a successor market opens, moving into it means redeeming here and
+          collections, and liquidity providers withdraw. The V1 mainnet pilot was a single fixed
+          cycle. When a successor market opens, moving into it means redeeming here and
           depositing there; nothing rolls over automatically.
         </p>
 
@@ -128,9 +128,9 @@ export default function LifecyclePage() {
       </div>
 
       <div className="mt-8">
-        <Callout label="Current market" signal>
-          The live mainnet market runs a 30-day cycle over the Blend v2 USDC pool, maturing{" "}
-          <strong>2026-08-09 15:39 UTC</strong>. Contract addresses and deployment records are in{" "}
+        <Callout label="V1 pilot market" signal>
+          The V1 mainnet pilot ran a 30-day cycle over the Blend v2 USDC pool and matured on{" "}
+          <strong>2026-08-09 15:39 UTC</strong>. Every position has been redeemed. Contract addresses and deployment records are in{" "}
           <Link href="/docs/contracts">Deployed contracts</Link>.
         </Callout>
       </div>
